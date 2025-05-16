@@ -8,7 +8,9 @@ e_t = 0.93; e_f = 0.93; e_c = 0.91
 c_pc = 1004; c_pt = 12239; gamma_c = 1.4; gamma_t = 1.3;
 c_ratio = c_pt/c_pc
 
-m0 = something; alpha = 1; mC = m0/(1+alpha); mB = m0*alpha/(1+alpha)
+m0 = 500; #change this value
+
+alpha = 1; mC = m0/(1+alpha); mB = m0*alpha/(1+alpha)
 
 #x = False
 
@@ -16,7 +18,7 @@ m0 = something; alpha = 1; mC = m0/(1+alpha); mB = m0*alpha/(1+alpha)
 
 #tau_c = pi_C*(gamma-1)/(gamma*e_c); tau_t = pi_T*(e_t*(gamma-1)/gamma);  #which gamma?
 
-M0 = varies;
+#M0 = varies;
 
 def TB_ratio_():
     """ Bypass Temperature Ratio T19/T0 """ 
@@ -38,7 +40,7 @@ def PC_ratio_():
 
 def M9_():
     """ Need to define Pt19/P0 """
-    return (2/(yt-1))*(())
+    return (2/(gamma_t-1))*(())
 
 def M19_():
     """ Need to define Pt9/P0 """
@@ -70,4 +72,4 @@ def SFC_():
     return ((m0/(1 + alpha)) * (f_() + f_B_()*alpha + f_AB_())) / F_()
 
 
-hi
+
