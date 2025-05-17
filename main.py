@@ -72,7 +72,6 @@ def TB_ratio():
     TB_ratio = tau_fn*tau_B*tau_f*tau_0
     return TB_ratio
 
-def TC_ratio_():
 def TC_ratio():
     """ Core Temperature Ratio T9/T0 """
     TC_ratio = tau_lambda*tau_t*tau_AB*(1/c_ratio)
