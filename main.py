@@ -1,4 +1,4 @@
-
+import numpy as np
 #m0 = something; alpha = 1; mC = m0/(1+alpha); mB = m0*alpha/(1+alpha)
 
 """ General Assumptions """
@@ -47,6 +47,9 @@ f_B = mf_B/mB # Bypass Fuel Air Ratio
 tau_B = T_t14/T_t13
 eff_B = eff_AB # Otherwise tau_B = 1
 
+R = c_pc*(1-1/gamma_c)
+a0 = np.sqrt(gamma_c*R*T_0)
+print(a0)
 
 # For now
 alpha = 1
@@ -92,6 +95,10 @@ def M9():
 def M19():
     """ Mach number at point 19 """
     return 
+
+def m0(M0):
+    rho0 = 100000/((M0*a0)**2)
+    return rho0*a0*A_0*M0
 
 def f():
     """ Calculates fuel air ratio for burner """
