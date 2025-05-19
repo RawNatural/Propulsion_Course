@@ -302,3 +302,23 @@ print(ST())
 
 """
 setMode(2, 3)
+print("Mode 2")
+print(tau)
+print(pi)
+
+setMode(4, 3)
+print("Mode 4")
+print(tau)
+print(pi)
+"""
+
+
+
+
+
+
+
+
+
+
+
