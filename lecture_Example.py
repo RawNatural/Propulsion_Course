@@ -8,34 +8,34 @@ c_ratio = c_pt/c_pc
 gamma_c = 1.4
 gamma_t = 1.3
 q_0 = 50 # [kPa]
-T_0 = 250 # [K]
+T_0 = 217 # [K]
 A_0 = 14.4 # [m2]
 C_D = 0.03 # Drag Coefficient
 A_ref = 382 # [m2]
 
 """ Fuel Properties """
-H = 120 # [MJ/kg]
+H = 42.8 # [MJ/kg] #LEC
 f_st = 0.0291
 phi = 1 # Maximum Equivalence Ratio
 
 """ Inlet Modelling """
-pi_dmax = 0.96
+pi_dmax = 0.85
 A_ratio =  2.5 # Diffuser Area Ratio # A_2/A_1
 
 """ Core Modelling Parameters """
 pi_c = 30 # Compressor Stagnation Pressure Ratio 
 pi_f = 2.0 # Fan Stagnation Pressure Ratio
-e_c = 0.91 # Compressor Polytropic Efficiency
-e_f = 0.93 # Fan Polytropic Efficiency
-pi_b = 0.99 # Burner Stagnation Pressure Ratio
+e_c = 0.8 # Compressor Polytropic Efficiency
+e_f = 0.8 # Fan Polytropic Efficiency
+pi_b = 0.9 # Burner Stagnation Pressure Ratio
 pi_AB = 0.99 # Afterburner Stagnation Pressure Ratio
-eff_b = 0.99 # Burner Combustion Efficiency
+eff_b = 0.85 # Burner Combustion Efficiency
 eff_AB = 0.99 # Afterburner Combustion Efficiency
 e_t = 0.93 # Turbine Polytropic Efficiency
 eff_m = 0.98 # Mechanical Transmission Efficiency
-pi_n = 0.95 # Nozzle Stagnation Pressure Ratio
+pi_n = 0.9 # Nozzle Stagnation Pressure Ratio
 tau_n = 1 # Nozzle Stagnation Temperature Ratio
-T_t4max = 2000 # [K] - Turbine Entry Stagnation Temperature
+T_t4max = 1900 # [K] - Turbine Entry Stagnation Temperature
 tau_lambda = (c_pt/c_pc)*(T_t4max/T_0)
 #f = mf/mc # Burner Fuel Air Ratio
 #f_AB = mf_AB/mc # Afterburner Fuel Air Ratio
@@ -61,6 +61,7 @@ alpha = 1
 
 mC = None; mB = None;
 
+f_st = 2.38 # Stoichiometric fuel ratio
 
 tau_c = (pi_c)**e_t*((gamma_c - 1)/gamma_c)
 tau_f = (pi_f)**e_t*((gamma_c - 1)/gamma_c)
@@ -74,7 +75,7 @@ def pi_0(M0):
     return (1 + (gamma_c -1)/2 * M0**2)**(gamma_c/(gamma_c -1))
 
 def tau_t(M0):
-    return 1-1/(eff_m*(1+f_()))*tau['0']/tau['lambda']*(tau['c']-1)
+    return 1-1/(eff_m*(1+f_(tau['c'])))*tau['0']/tau['lambda']*(tau['c']-1)
 
 """Set all tau's and pi's in a dictionary"""
 tau = {
@@ -103,9 +104,6 @@ pi = {
     "0": None
 }
 
-f = {
-
-}
 
 """Define Functions"""
 
@@ -116,7 +114,7 @@ def TB_ratio(M0):
 
 def TC_ratio(M0):
     """ Core Temperature Ratio T9/T0 """
-    TC_ratio = tau['lambda']*tau_t(M0)*(1/c_ratio) / ((1*pi['0']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n']*pi['f'])**((gamma_t-1)/gamma_t))
+    TC_ratio = tau['lambda']*tau_t(M0)*(1/c_ratio) / ((1*pi['0']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t))
     return TC_ratio
 
 def PB_ratio_():
@@ -127,31 +125,23 @@ def PC_ratio():
     """ Pressure stagnation ratio across Core Pt9/P9 """ 
     return pi['n']*pi['AB']*pi['t']*pi['b']*pi['c']*pi['f']*pi['0']
 
-def M9():
+def M9(piC):
     """ Mach number at point 9 """
-    return np.sqrt(abs((2/(gamma_t-1))*((1*pi['0']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t)-1)))
-
-def M19(M0):
-    """ Mach number at point 19 """
-    return M0*1.5 #change for something later
+    M_9 = np.sqrt(abs((2/(gamma_t-1))*((1*pi['0']*pi['d']*piC*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t)-1)))
+    return M_9
 
 def m0_(M0):
     rho0 = 100000/((M0*a0)**2)
     m_0 = rho0*a0*A_0*M0
     global mC, mB
-    mC = m_0/(1+alpha); mB = m_0 * alpha / (1+alpha);
+    mC = m_0
+    mB = 0
     return m_0
 
-def f_():
+def f_(tauC):
     """ Calculates fuel air ratio for burner """
-    numerator = tau['lambda'] - tau['c']*tau['0']
+    numerator = tau['lambda'] - tauC*tau['0']
     denominator = (eff_b*H)/(c_pc*T_0)
-    return numerator/denominator
-
-def f_B_():
-    """ Caclulates fuel air ratio for bypass """
-    numerator = tau['B']*tau['f']*tau['0'] - tau['f']*tau['0']
-    denominator = ((eff_B*H)/(c_pc*T_0)) - tau['B']*tau['f']*tau['0']
     return numerator/denominator
 
 def tau_B_():
@@ -169,37 +159,36 @@ def pi_B():
     """ Assuming Isentropic across bypass burner """ #Task sheet says to use Rayleigh flow as in a ramjet (lecture 8 maybe)
     return 0.99 #use this for now because pi_AB and pi_b are 0.99
 
-def f_AB_():
+def f_AB_(tauC):
     """ Calculates fuel air ratio for after burner """
-    f_AB = ((c_pt*T_0)/(eff_AB*H))*(1 + f_())*(tau_t(M0)*tau_lambda)
-    print(f"f_AB = {f_AB}")
+    f_AB = f_st-f_(tauC)
     return f_AB
 
-def tau_AB_():
-    numerator = f_AB_() * (eff_AB*H/(c_pt*T_0))+tau['t']*tau['lambda']*(1 + f_())
-    denominator = tau['t']*tau['lambda']*(1 + f_()) + f_AB_()*tau['t']*tau['lambda']
+def tau_AB_(tauC, M0):
+    numerator = (f_st - f_(tauC))* (eff_AB*H/(c_pt*T_0))+tau['t']*tau['lambda']*(1 + f_(tauC))
+    denominator = tau['t']*tau['lambda']*(1 + f_(tauC)) + (f_st - f_(tauC))*tau['t']*tau['lambda']
     tauAB = numerator/denominator
-    return tau_AB #Actually supposed to calculate using f_st = f combustion things.
+    return tauAB #Actually supposed to calculate using f_st = f combustion things.
 
 def pi_t(M0):
     return tau_t(M0) ** (gamma_t/((gamma_t-1)*e_t))
 
 """ Key Notes
     From Assignment Task Sheet: P0 = P9 = P19, therefore P0/P9 = P0/P19 = 1 """
-def F(M0):
+def F_(M0, piC, tauC):
     """ Calculates overall thrust """
-    Fcore = m0_(M0)*(a0/(1+alpha))*((1+f_()+f_AB_())*(   np.sqrt(gamma_t*Rt*TC_ratio(M0)/(gamma_c*Rc)) * M9())-M0)
-    Fbypass = m0_(M0)*(alpha*a0/(1+alpha))*((1+f_B_())*(   np.sqrt(gamma_t*Rt*TB_ratio(M0)/(gamma_c*Rc)) * M19(M0))-M0) # P0=P9, so last term all goes to 0.
+    Fcore = m0_(M0)*(a0)*((1+f_(tauC)+f_AB_(tauC))*(   np.sqrt(gamma_t*Rt*TC_ratio(M0)/(gamma_c*Rc)) * M9(piC))-M0)
+    print(m0_(M0))
+    Fbypass = 0#m0_(M0)*(alpha*a0/(1+alpha))*((1+f_B_())*(   np.sqrt(gamma_t*Rt*TB_ratio(M0)*gamma_c*Rc) * M19(M0))-M0) # P0=P9, so last term all goes to 0.
     return Fcore+Fbypass
 
-def ST():
+def ST_(M0, piC, tauC):
     " Calculates specific thrust "
-    return F(M0)/m0_(M0)
+    return F_(M0, piC, tauC)/m0_(M0)
 
-def SFC(M0):
+def SFC_(M0):
     """ Calculates specifc fuel consumption """
-    return ((m0_(M0)/(1 + alpha)) * (f_() + f_B_()*alpha + f_AB_())) / F(M0)
-
+    return (m0_(M0)/(1 + alpha)) * (f_(tauC)) / F_(M0,piC)
 
 def setMode(mode, M0):
     if mode == 1:
@@ -273,12 +262,12 @@ def setMode(mode, M0):
 """ Main Code """
 
 #M0 = np.linspace(0.1, 10, 10)
-M0 = 3
+M0 = 1.5
 # Initiate
 tau['0'] = tau_0(M0)
 tau['t'] = tau_t(M0)
 tau['B'] = tau_B
-tau['AB'] = tau_AB_()
+#tau['AB'] = tau_AB_(tauC)
 pi["t"] = pi_t(M0)
 pi["B"] = pi_B()
 pi['0'] = pi_0(M0)
@@ -286,34 +275,17 @@ pi['0'] = pi_0(M0)
 
 """Make the plot for performance. - thrust? SFC? """
 
-print(tau)
+M0 = 1.5
 
-'''Tests'''
-setMode(1, 3)
-print("Mode 1")
-print(tau)
-print(pi)
+piC = np.linspace(0.01, 40, 100)
+tauC = piC**(gamma_c-1)/(gamma_c*e_c)
+tau['AB'] = tau_AB_(tauC, M0)
+ST = ST_(M0, piC, tauC)
 
+import matplotlib.pyplot as plt
 
-setMode(2, 3)
-print("Mode 2")
-print(tau)
-print(pi)
-
-setMode(4, 3)
-print("Mode 4")
-print(tau)
-print(pi)
-
-print(SFC(M0))
-print(ST())
-
-
-
-
-
-
-
-
-
-
+plt.plot(piC, ST)
+plt.xlabel("pi C")
+plt.ylabel("Specific Thrust F/m0 [N/(kg/s)]")
+plt.title("Compare to lecture slide")
+plt.show()
