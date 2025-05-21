@@ -65,7 +65,7 @@ mC = None; mB = None;
 f_st = 2.38 # Stoichiometric fuel ratio
 
 tau_c = pi_c**(e_c*((gamma_c - 1)/(gamma_c)))
-tau_f = (pi_f)**e_t*((gamma_c - 1)/gamma_c)
+tau_f = (pi_f)**e_c*((gamma_c - 1)/gamma_c)
 tau_fn = 1
 
 
@@ -142,7 +142,7 @@ def m0_(M0):
 def f_(tauC):
     """ Calculates fuel air ratio for burner """
     numerator = tau['lambda'] - tauC*tau['0']
-    denominator = (eff_b*H)/(c_pc*T_0) #-tau['lambda']
+    denominator = (eff_b*H)/(c_pc*T_0) -tau['lambda']
     return numerator/denominator
 
 def tau_B_():
@@ -179,7 +179,7 @@ def pi_t(M0, tauC):
 def F_(M0, piC, tauC):
     """ Calculates overall thrust """
     #Fcore = m0_(M0)*(a0)*((1+f_(tauC)+f_AB_(tauC))*(   np.sqrt(gamma_t*Rt*TC_ratio(M0)/(gamma_c*Rc)) * M9(piC))-M0)
-    Fcore = (a0)*((1+f_(tauC)+f_AB_(tauC))*(   np.sqrt(gamma_t*Rt*TC_ratio(M0, piC, tauC)/(gamma_c*Rc)) * M9(piC))-M0)
+    Fcore = (a0)*((1+f_(tauC))*(   np.sqrt(gamma_t*Rt*TC_ratio(M0, piC, tauC)/(gamma_c*Rc)) * M9(piC))-M0)
     Fbypass = 0#m0_(M0)*(alpha*a0/(1+alpha))*((1+f_B_())*(   np.sqrt(gamma_t*Rt*TB_ratio(M0)*gamma_c*Rc) * M19(M0))-M0) # P0=P9, so last term all goes to 0.
     return Fcore+Fbypass
 

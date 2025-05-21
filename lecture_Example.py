@@ -19,7 +19,7 @@ R_c = c_pc * (1 - 1 / gamma_c)
 R_t = c_pt * (1 - 1 / gamma_t)
 
 print(f"R_c = {R_c:.2f} J/kg·K, R_t = {R_t:.2f} J/kg·K")
-
+f_st = 0.0291
 """ Technology Level 1 """
 pi_d = 0.85
 e_c = 0.8
@@ -46,14 +46,10 @@ def tau_c(pi_c_val):
     return pi_c_val**(e_t*((gamma_c - 1) / (gamma_c * e_c)))
 
 def f(M0, pi_c_val):
-    return ((tau_lambda() - tau_0(M0) * tau_c(pi_c_val)) / ((eff_b * H) / (c_pc * T0) )) #- tau_lambda
-
-    #numerator = tau['lambda'] - tauC*tau['0']
-    #denominator = (eff_b*H)/(c_pc*T_0)
+    return ((tau_lambda() - tau_0(M0) * tau_c(pi_c_val))) / ((eff_b * H) / (c_pc * T0) - tau_lambda())
 
 def tau_t(M0, pi_c_val):
     return 1 - 1 / (eff_m * (1 + f(M0, pi_c_val))) * (tau_0(M0) / tau_lambda()) * (tau_c(pi_c_val) - 1)
-
 
 def pi_t(M0, pi_c_val):
     return tau_t(M0, pi_c_val)**(gamma_t / ((gamma_t - 1) * e_t))
@@ -74,7 +70,7 @@ def M9(M0, pi_c_val):
 TCratios = []
 def ST(M0, pi_c_val):
     TCratios.append(T9_T0(M0, pi_c_val))
-    return a_0 * ((1 + f(M0, pi_c_val)) * np.sqrt((gamma_t * R_t / (gamma_c * R_c)) * T9_T0(M0, pi_c_val)) * M9(M0, pi_c_val) - M0)
+    return a_0 * ((1 + f(M0,pi_c_val)) * np.sqrt((gamma_t * R_t / (gamma_c * R_c)) * T9_T0(M0, pi_c_val)) * M9(M0, pi_c_val) - M0)
 
 # Compute ST for all pi_c
 ST_vals = ST(M0, pi_c)
