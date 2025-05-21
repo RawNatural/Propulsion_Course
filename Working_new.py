@@ -151,7 +151,7 @@ def PC_ratio():
 
 def M9():
     """ Mach number at point 9 """
-    return np.sqrt(abs((2/(gamma_t-1))*((1*pi['0']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t)-1)))
+    return (2/(gamma_t-1))*((1*pi['0']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t)-1)
 
 def M19(M0):
     """ Mach number at point 19 """
