@@ -96,11 +96,17 @@ def pi_0_(M0):
 def pi_d_(M0):
     """ Calculates stagnation pressure ratio across the inlet Pt2/Pt0 """
     pi_ds = []
-    for M in M0:
-        eff_r = 1 if M <= 1 else 1-0.075*(M-1)**1.35 if M < 5 else 800/(M**4+985)
+    if not isinstance(M0, float):
+        for M in M0:
+            eff_r = 1 if M <= 1 else 1-0.075*(M-1)**1.35 if M < 5 else 800/(M**4+985)
+            pi_d = eff_r * pi_dmax
+            pi_ds.append(pi_d)
+        return np.array(pi_ds)
+    else:
+        eff_r = 1 if M0 <= 1 else 1-0.075*(M0-1)**1.35 if M0 < 5 else 800/(M0**4+985)
         pi_d = eff_r * pi_dmax
-        pi_ds.append(pi_d)
-    return np.array(pi_ds)
+        return pi_d
+    
 
 """Set all tau's and pi's in a dictionary"""
 tau = {
@@ -144,7 +150,8 @@ def TC_ratio(): #verified
 
 def PB_ratio_():
     """ Pressure stagnation ratio across Bypass Pt19/P19 """
-    PB_ratio = pi['fn']*pi['B']*pi['f']*pi['0']
+    PB_ratio = pi['fn']*pi['B']*pi['f']*pi['0']*pi['d']
+    #print(f"pi_d = {pi['d']}")
     return PB_ratio
 
 def PC_ratio():
@@ -169,9 +176,17 @@ def MFP(M0,gamma_c,Rc):
 
 def M2(M0):
     """ Calculates M2 """
-    M1 = ((1 + (gamma_c - 1)/2 * M0**2)/(gamma_c*M0**2 - (gamma_c - 1)/2))**0.5
+    M1 = abs((1 + (gamma_c - 1)/2 * M0**2)/(gamma_c*M0**2 - (gamma_c - 1)/2))**0.5
+    M2s = []
+    if not isinstance(M1, float):
+        for M_1 in M1:
+            M_2 = fsolve(lambda M: MFP(M,gamma_c,Rc) - MFP(M_1,gamma_c,Rc)*(1/A_ratio), 0.2)[0]
+            M2s.append(M_2)
+        M2_ = np.array(M2s)
+    else:
+        M2_ = fsolve(lambda M: MFP(M,gamma_c,Rc) - MFP(M1,gamma_c,Rc)*(1/A_ratio), 0.2)[0]
+    return M2_
 
-    M2 = fsolve(lambda M: MFP(M0,gamma_c,Rc) - MFP(M1,gamma_c,Rc)*(1/A_ratio), M1 + 2.0)[0]
 
 def M19_(M0):
     """ Mach number at point 19 """
@@ -205,18 +220,40 @@ def tau_B_():
     tau_B = tau_B_num/tau_B_den
     return tau_B
 
-def M13():
-    return np.sqrt(abs((((pi_f*pi['0'])**((gamma_t - 1)/gamma_t) - 1)*2/(gamma_t - 1))))
+def M13_(M0):
+    #return np.sqrt(abs((((pi_f*pi['0'])**((gamma_t - 1)/gamma_t) - 1)*2/(gamma_t - 1))))
+    return M2(M0)
 
-def M14():
-    M13_ = M13()
-    X = tau_B_()*M13_**2 * (1+((gamma_c-1)/1)*M13_**2) / ((1+gamma_c*M13_**2)**2)
-    #print(f"Inner bracket: {(1 - 2*X*(gamma_c + 1))}")
-    M14 = np.sqrt(abs(2*X/(1 - 2*X*gamma_c + np.sqrt(abs(1 - 2*X*(gamma_c + 1))))))
-    return M14
+def solve_M14(M14, M13):
+    return ((((1 + ((gamma_c - 1) / 2) * M14**2) / (1 + ((gamma_c - 1) / 2) * M13**2)) * (M14 / M13)**2 ) \
+             * ((1 + gamma_c * M13**2) / (1 + gamma_c * M14**2))**2) - tau['B']
+
+def M14_(M0):
+    M13 = M13_(M0)
+    M14_guess = 0.2
+    M14s = []
+    if not isinstance(M13, float):
+        for M_13 in M13:
+            M_14 = fsolve(lambda M: MFP(M,gamma_c,Rc) - MFP(M_13,gamma_c,Rc)*(1/A_ratio), M14_guess)[0]
+            M14s.append(M_14)
+        M14_ = np.array(M14s)
+    else:
+        M14_ = fsolve(solve_M14, M14_guess, args=(M13_(M0),))
+    return M14_
+
+def getCombustion_T_and_Ps(M13, M14):
+    Tt13 = tau['0']*tau['f']*T_0
+    T13 = Tt13/(1+(gamma_c-1)/2*M13**2)
+    Tt14 = Tt13*tau['B']
+    T14 = Tt14/(1+(gamma_c-1)/2*M14**2)
+    Pt13 = pi['0']*pi['f']*pi_dmax*T_0
+    P13 = Pt13/((Tt13/T13)**(gamma_c/(gamma_c-1)))
+    Pt14 = Pt13*pi['B']
+    P14 = Pt14/((Tt14/T14)**(gamma_c/(gamma_c-1)))
+    return [[T13, T14], [P13, P14]]
 
 def pi_B_(M_13, M_14):
-    """ Calculates stagnation pressure ratio Pt14/Pt13 across Bypass """
+    """ Calculat2es stagnation pressure ratio Pt14/Pt13 across Bypass """
     pi_B = ((1 + gamma_c*M_13**2)/(1 + gamma_c*M_14**2))*((1 + (gamma_c - 1)/2 *M_14**2)/(1 + (gamma_c - 1)/2 * M_13**2))**(gamma_c/(gamma_c - 1))
     return pi_B
 
@@ -267,6 +304,7 @@ def setMode(mode, M0):
         "f": pi_f,
         "t": pi_t_(tau_t_()),
         "B": 1,
+        "d": pi_d_(M0),
         "0": pi_0_(M0)})
         f.update({
             "B": 0,
@@ -285,6 +323,7 @@ def setMode(mode, M0):
         "f": pi_f,
         "t": pi_t_(tau_t_()),
         "B": 1,
+        "d": pi_d_(M0),
         "0": pi_0_(M0)})
         f.update({
             "B": 0,
@@ -300,8 +339,9 @@ def setMode(mode, M0):
         pi.update({"c": pi_c,
         "AB": pi_AB,
         "f": pi_f,
+        "d": pi_d_(M0),
         "t": pi_t_(tau_t_()),
-        "B": pi_B_(M14(), M13()),
+        "B": pi_B_(M14_(M0), M13_(M0)),
         "0": pi_0_(M0)})
         f.update({
             "B": f_B_(),
@@ -319,7 +359,8 @@ def setMode(mode, M0):
         "AB": pi_AB,
         "f": 1,
         "t": 1,
-        "B": pi_B_(M14(), M13()),
+        "d": pi_d_(M0),
+        "B": pi_B_(M14_(M0), M13_(M0)),
         "0": pi_0_(M0)})
         f.update({
             "B": f_B_(),
@@ -341,7 +382,7 @@ if __name__ == "__main__":
         4: "Ramjet"
     }
 
-    M0 = np.linspace(0.1, 10, 500)  # finer resolution
+    M0 = np.linspace(0.1, 10, 50)  # finer resolution
     #print(f"M0: {M0}")
 
 
@@ -355,9 +396,8 @@ if __name__ == "__main__":
     tau['t'] = tau_t_()
     pi['t'] = pi_t_(tau['t'])
     tau['B'] = tau_B_()
-    pi['B'] = pi_B_(M13(), M14())
+    pi['B'] = pi_B_(M13_(M0), M14_(M0))
     pi['d'] = pi_d_(M0)
-
 
     print("Successfully Inititialised!")
 
