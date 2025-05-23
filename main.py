@@ -80,7 +80,7 @@ def tau_f_():
     return tau_f
 
 def tau_0_(M0):
-    tau_0 = 1 + (gamma_c - 1)/2 * M0**2
+    tau_0 = 1 + (((gamma_c - 1)/2) * M0**2)
     return tau_0
 
 
@@ -242,6 +242,7 @@ def M14_(M0):
     return M14_
 
 def getCombustion_T_and_Ps(M13, M14):
+    print(f"tau = {tau}")
     Tt13 = tau['0']*tau['f']*T_0
     T13 = Tt13/(1+(gamma_c-1)/2*M13**2)
     Tt14 = Tt13*tau['B']
@@ -444,89 +445,94 @@ if __name__ == "__main__":
     plt.show()
 
 
-""" Task 2a """
+    """ Task 2a """
+    M0 = np.linspace(2, 4, 200)
+    setMode(3, M0)
 
-L_Bb = 4 # Bypass Burner Length
+    L_Bb = 4 # Bypass Burner Length
 
-def V_13_():
-    V_13 = np.sqrt(gamma_c*Rc*T13)
+    def V_13_():
+        V_13 = np.sqrt(gamma_c*Rc*T13)
+        return V_13
 
-[T_vals, P_vals] = getCombustion_T_and_Ps(M13_(M0), M14_(M0))
-T13, T14 = T_vals
-P13, P14 = P_vals
+    [T_vals, P_vals] = getCombustion_T_and_Ps(M13_(M0), M14_(M0))
+    T13, T14 = T_vals
+    P13, P14 = P_vals
+    L_Bb = 4 # Bypass Burner Length
 
-L_Bb = 4 # Bypass Burner Length
+    def V_13_():
+        V_13 = np.sqrt(gamma_c*Rc*T13)*M13_(M0)
+        return V_13
 
-def V_13_():
-    V_13 = np.sqrt(gamma_c*Rc*T13)*M13_(M0)
-    return V_13
+    def condition():
+        """ L_Bb/V_13 Time for mass flow through bypass"""
+        conditions = []
+        for i in range(0, len(V_13_())):
+            cond = L_Bb/V_13_()[i]
+            conditions.append(cond)
+        return conditions
 
-def condition():
-    """ L_Bb/V_13 """
-    conditions = []
-    for i in range(0, len(V_13_())):
-        cond = L_Bb/V_13_()[i]
-        conditions.append(cond)
-    return conditions
+    # print(f"Conditions = {condition()}")
+    # print(f"T_13 = {T13}")
+    # print(f"P_13 = {P13}")
 
-# print(f"Conditions = {condition()}")
-# print(f"T_13 = {T13}")
-# print(f"P_13 = {P13}")
+    A = 2.4e19
+    B = 0
+    Ta = 30000
+    #P0 = 10e5
+    P0 = P13
+    #R = 8.314
+    R = Rc#8.314
+    n=1
 
-A = 2.4e19
-B = 0
-Ta = 30000
-P0 = 10e5
-R = 8.314
-n=1
+    def getkf(T13):
+        return (A*T13**B) * np.exp(-Ta/(T13))
 
-def getkf(T13):
-    return A*T13**B * np.exp(-Ta/(T13))
+    def getc(T13):
+        return P0/(Rc*T13)
+    
+    kf = getkf(T13) # Forward reaction coefficient
 
-def getc(T13):
-    return P0/(R*T13)
+    c = getc(T13) #K = getK(T);
+    X_H2 = 0.296; X_O2 = 0.148; X_N2 = 1.88
+    X_H20p = 0.347; X_N2p = 0.653
 
-def getK(T13):
-    expv = 50+(34-50)*(T13-600)/(800-600)     
-    # Linear interpolation from 50-34 w.r.t. T of 600-800K. Negligible later.
-    return np.exp(expv)
+    X_vals = [X_H2, X_O2, X_N2, X_H20p, X_N2p]
 
-kf = getkf(T13) # Forward reaciton coefficient
-c = getc(T13) #K = getK(T);
-X_H2 = 0.296; X_O2 = 0.148; X_N2 = 1.88
-X_H20p = 0.347; X_N2p = 0.653
+    r0 = 2*kf*c**1.5 * X_vals[0] * X_vals[1] ** 0.5 #- 2*kr * c**2 * X_vals[3]; #Reaction rate at time t0
+    # subtraction of products negligible
 
-X_vals = [X_H2, X_O2, X_N2, X_H20p, X_N2p]
-#kr = (R*T/P)**n* kf/K # negligible later
+    print(f"Reaction rate r0 = {r0}")
+    print(f"c = {c}")
 
-r0 = 2*kf*c**1.6 * X_vals[0] * X_vals[1] ** 0.5 #- 2*kr * c**2 * X_H2O * X_O2p; Reaciton rate at time t0
-# subtraction of products negligible
+    tau_comb = c * X_vals[3] / r0 # Time taken to reach equilibrium
 
-print(f"Reaction rate r0 = {r0}")
-print(f"c = {c}")
+    time_flow_bypass = condition()  # Call once to avoid redundant computation
 
-tau_comb = c * X_vals[3] / r0 # Time taken to reach equilibrium
+    print(f" Time for air flow through bypass = {time_flow_bypass}")
 
-cond_values = condition()  # Call once to avoid redundant computation
+    M_bypass_burn = False
 
-print(f" Condition values = {cond_values}")
+    for i in range(len(tau_comb)):
+        if time_flow_bypass[i] > tau_comb[i]:
+            if not isinstance(M_bypass_burn, float):
+                M_bypass_burn = M0[i]
+            print(f"Reaction OK to complete @ {M0[i]}")
+        else:
+            print(f"Reaction will not complete @ {M0[i]}")
 
-for i in range(len(tau_comb)):
-    if cond_values[i] > tau_comb[i]:
-        print("Condition > Reaction Time")
-    else:
-        print("Condition < Reaction Time")
+    print(f"M_bypass_burn = {M_bypass_burn:.2f}")
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.plot(T13, tau_comb, "-")
+    plt.xlabel("Temperature (K)")
+    plt.ylabel("Reaction time (s)")
+    plt.show()
 
+    plt.figure()
+    plt.plot(T13, np.log(tau_comb), "-")
+    plt.xlabel("Temperature (K)")
+    plt.ylabel("Log of reaction time")
+    plt.show()
 
-import matplotlib.pyplot as plt
-plt.figure()
-plt.plot(T13, tau_comb, "-")
-plt.xlabel("Temperature (K)")
-plt.ylabel("Reaction time (s)")
-plt.show()
-
-plt.figure()
-plt.plot(T13, np.log(tau_comb), "-")
-plt.xlabel("Temperature (K)")
-plt.ylabel("Log of reaction time")
-plt.show()
+print(f" Maximum value of T13 ={np.max(T13)}; Minimum value of T13 = {np.min(T13)}")
