@@ -81,6 +81,7 @@ def tau_f_():
     return tau_f
 
 def tau_0_(M0):
+    """ Calculates stagnation temperature ratio across inlet """
     tau_0 = 1 + (((gamma_c - 1)/2) * M0**2)
     return tau_0
 
@@ -285,6 +286,8 @@ def F(M0):
     Fbypass = m0_(M0)*((alpha*a0/(1+alpha))*((1+f["B"])*(np.sqrt(gamma_t*Rt*TB_ratio()/(gamma_c*Rc)) * M19_(M0))-M0)) # P0=P19, so last term all goes to 0.
     F_total = Fcore + Fbypass
     return F_total
+
+
 
 def ST(M0):
     " Calculates specific thrust "
@@ -664,7 +667,6 @@ plt.xlabel(" Mach Number (M0) ")
 plt.ylabel(" Thrust Margin ")
 plt.show()
                       
-
 
 
 #print(f" Maximum value of T13 ={np.max(T13)}; Minimum value of T13 = {np.min(T13)}")
