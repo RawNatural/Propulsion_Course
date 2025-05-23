@@ -443,3 +443,55 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
+
+""" Task 2a """
+
+[T_vals, P_vals] = getCombustion_T_and_Ps(M13_(M0), M14_(M0))
+T13, T14 = T_vals
+P13, P14 = P_vals
+
+print(f"T_13 = {T13}")
+print(f"P_13 = {P13}")
+
+A = 2.4e19
+B = 0
+Ta = 30000
+R = 8.314
+n=1
+
+def getkf(T_):
+    return A*T13**B * np.exp(-Ta/(T13))
+
+def getc(T_):
+    return P13/(R*T13)
+
+def getK(T_):
+    expv = 50+(34-50)*(T13-600)/(800-600)     
+    # Linear interpolation from 50-34 w.r.t. T of 600-800K. Negligible later.
+    return np.exp(expv)
+
+kf = getkf(T13); c = getc(T13); #K = getK(T);
+X_H2 = 0.296; X_O2 = 0.148; X_N2 = 1.88
+X_H20p = 0.347; X_N2p = 0.653
+
+X_vals = [X_H2, X_O2, X_N2, X_H20p, X_N2p]
+#kr = (R*T/P)**n* kf/K # negligible later
+
+r0 = kf* c **1.6 * X_vals[0] * X_vals[1] ** 0.6 #- 2*kr * c**2 * X_H2O * X_O2p; 
+# subtraction of products negligible
+
+print(f"Reaction rate r0 = {r0}")
+tau_comb = c * X_vals[3] / r0
+
+import matplotlib.pyplot as plt
+plt.figure()
+plt.plot(T13, tau_comb, "-")
+plt.xlabel("Temperature (K)")
+plt.ylabel("Reaction time (s)")
+plt.show()
+
+plt.figure()
+plt.plot(T13, np.log(tau_comb), "-")
+plt.xlabel("Temperature (K)")
+plt.ylabel("Log of reaction time")
+plt.show()
