@@ -229,22 +229,52 @@ def M13_(M0):
     #return np.sqrt(abs((((pi_f*pi['0'])**((gamma_t - 1)/gamma_t) - 1)*2/(gamma_t - 1))))
     return M2(M0)
 
-def solve_M14(M14, M13):
-    return ((((1 + ((gamma_c - 1) / 2) * M14**2) / (1 + ((gamma_c - 1) / 2) * M13**2)) * (M14 / M13)**2 ) \
-             * ((1 + gamma_c * M13**2) / (1 + gamma_c * M14**2))**2) - tau['B']
+#def solve_M14(M14, M13):
+#    return ((((1 + ((gamma_c - 1) / 2) * M14**2) / (1 + ((gamma_c - 1) / 2) * M13**2)) * (M14 / M13)**2 ) * ((1 + gamma_c * M13**2) / (1 + gamma_c * M14**2))**2) - tau['B']
+def solve_M14(M14, M13, tau_B_val):
+    M14 = M14[0] if isinstance(M14, (np.ndarray, list)) else M14
+    return ((((1 + ((gamma_c - 1) / 2) * M14**2) / (1 + ((gamma_c - 1) / 2) * M13**2)) * (M14 / M13)**2 )
+            * ((1 + gamma_c * M13**2) / (1 + gamma_c * M14**2))**2) - tau_B_val#1.2#tau['B']
 
 def M14_(M0):
-    M13 = M13_(M0)
+    M13_vals = M13_(M0)
+    tau_B_vals = tau['B']
     M14_guess = 0.2
     M14s = []
-    if not isinstance(M13, float):
-        for M_13 in M13:
-            M_14 = fsolve(lambda M: MFP(M,gamma_c,Rc) - MFP(M_13,gamma_c,Rc)*(1/A_ratio), M14_guess)[0]
+
+    # Convert scalars to 1-element lists for uniform handling
+    if np.isscalar(M13_vals):
+        M13_vals = [M13_vals]
+    if np.isscalar(tau_B_vals):
+        tau_B_vals = [tau_B_vals] * len(M13_vals)  # broadcast scalar to match M13
+
+    for M_13, tauB in zip(M13_vals, tau_B_vals):
+        M_14 = fsolve(solve_M14, M14_guess, args=(M_13, tauB))[0]
+        M14s.append(M_14)
+
+    return M14s[0] if len(M14s) == 1 else np.array(M14s)
+
+"""def M14_(M0):
+    M13_vals = M13_(M0)
+    M14_guess = 0.2
+    M14s = []
+    tau_B_val = 0
+    if isinstance(tau['B'], (np.ndarray, list)):
+        tau_B_vals = tau['B']
+        if len(tau_B_vals == 1):
+            tau_B_val = tau_B_vals[0]
+        else:
+            for tauB in tau_B_vals:
+                M_14 = fsolve(solve_M14, M14_guess, args=(M_13,tauB))[0]
+    if isinstance(M13_vals, (np.ndarray, list)):
+        #for M_13, tau_B_val in zip(M13_vals, tau_B_vals):
+        for M_13 in M13_vals:
+            M_14 = fsolve(solve_M14, M14_guess, args=(M_13,))[0]
             M14s.append(M_14)
         M14_ = np.array(M14s)
     else:
-        M14_ = fsolve(solve_M14, M14_guess, args=(M13_(M0),))
-    return M14_
+        M14_ = fsolve(solve_M14, M14_guess, args=(M13_vals, tau['B']))[0]
+    return M14_"""
 
 def getCombustion_T_and_Ps(M13, M14):
     #print(f"tau = {tau}")
@@ -563,8 +593,7 @@ if __name__ == "__main__":
             if not isinstance(M_bypass_burn, float):
                 M_bypass_burn = M0[i - 1]
             #print(f"Reaction OK to complete @ {M0[i]}")
-        else:
-            break
+            #break
             #print(f"Reaction will not complete @ {M0[i]}")
     
     # Plot Winning Graph - Task 4
@@ -585,10 +614,10 @@ if __name__ == "__main__":
         T_margin = F_/D-1
         #if hasattr(val, "__len__"):
         #    val = np.mean(val)
-        ST_values.append(val[0])
-        SFC_values.append(SFC_[0])
-        #T_margins.append(F_[0])
-        T_margins.append(T_margin[0])
+        ST_values.append(np.atleast_1d(val)[0])
+        SFC_values.append(np.atleast_1d(SFC_)[0])
+        T_margins.append(np.atleast_1d(T_margin)[0])
+
 
     plt.figure(figsize=(10, 6))
     plt.plot(M0, ST_values, label="Specific Thrust")
@@ -597,9 +626,11 @@ if __name__ == "__main__":
     plt.ylabel("Specific Thrust [Ns/kg]")
     plt.ylim(0, 9000)
     plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
-    plt.text(M_turb_limit, 2500, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
+    plt.text(M_turb_limit, 2500, 'Mach turbine limit ', rotation=0, va='bottom', ha='left')
     plt.axvline(x=M_max, color='gray', linestyle='--')
     plt.text(M_max, 2500, 'Mach max ', rotation=0, va='bottom', ha='right')
+    plt.axvline(x=M_bypass_burn, color='gray', linestyle='--')
+    plt.text(M_bypass_burn, 7000, 'Mach Bypass Burn ', rotation=0, va='bottom', ha='right')
     plt.title("Specific Thrust vs Flight Mach Number for Transitioning Modes")
     plt.legend()
     plt.tight_layout()
@@ -611,10 +642,13 @@ if __name__ == "__main__":
     plt.xlabel("Flight Mach Number (M0)")
     plt.ylabel("Specific Fuel Consumption [N/(kg/s)]") 
     plt.title("Specific Fuel Consumption vs Flight Mach Number for Transitioning Modes")
+    plt.ylim(0, 0.0008)
     plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
-    plt.text(M_turb_limit, 0.0007, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
+    plt.text(M_turb_limit, 0.0007, 'Mach turbine limit ', rotation=0, va='bottom', ha='left')
     plt.axvline(x=M_max, color='gray', linestyle='--')
     plt.text(M_max, 0.00025, 'Mach max ', rotation=0, va='bottom', ha='right')
+    plt.axvline(x=M_bypass_burn, color='gray', linestyle='--')
+    plt.text(M_bypass_burn, 0.00025, 'Mach Bypass Burn ', rotation=0, va='bottom', ha='right')
     plt.legend()
     plt.tight_layout()
     plt.show()
@@ -670,26 +704,17 @@ def margin_lim(M0):
         if T_margins[i] < 1:
             return M0[i-1]
 
-print(f" Thrust Margin Limit = {margin_lim(M0)}")
-
-""" Task 5 """
-"""
-D = q_0*C_D*2*A_0
-thrust_margins = []
-F_values = []
-for i in range(len(M0)):
-    thrust_margin = (F_values[i]/D) - 1
-    thrust_margins.append(thrust_margin)
-
-
-print(D)
-
-plt.plot(M0, thrust_margins)
-plt.title(" Thrust Margin vs M0 ")
-plt.xlabel(" Mach Number (M0) ")
-plt.ylabel(" Thrust Margin ")
-plt.show()
- """         
+""" Task 5: Getting the margin limit value (which is above M_Max """
+def margin_lim():
+    M0 = np.linspace(M_max, 10, 100)
+    setMode(4, M0)
+    thrust_margin = (F(M0)/D) - 1
+    print(thrust_margin)
+    for i, tm in enumerate(thrust_margin):
+        if tm < 1:
+            return M0[i-1]
+#print(D)
+print(f" Thrust Margin Limit = {margin_lim():.2f}")
 
 
 #print(f" Maximum value of T13 ={np.max(T13)}; Minimum value of T13 = {np.min(T13)}")
