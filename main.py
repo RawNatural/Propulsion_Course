@@ -446,42 +446,77 @@ if __name__ == "__main__":
 
 """ Task 2a """
 
+L_Bb = 4 # Bypass Burner Length
+
+def V_13_():
+    V_13 = np.sqrt(gamma_c*Rc*T13)
+
 [T_vals, P_vals] = getCombustion_T_and_Ps(M13_(M0), M14_(M0))
 T13, T14 = T_vals
 P13, P14 = P_vals
 
-print(f"T_13 = {T13}")
-print(f"P_13 = {P13}")
+L_Bb = 4 # Bypass Burner Length
+
+def V_13_():
+    V_13 = np.sqrt(gamma_c*Rc*T13)*M13_(M0)
+    return V_13
+
+def condition():
+    """ L_Bb/V_13 """
+    conditions = []
+    for i in range(0, len(V_13_())):
+        cond = L_Bb/V_13_()[i]
+        conditions.append(cond)
+    return conditions
+
+# print(f"Conditions = {condition()}")
+# print(f"T_13 = {T13}")
+# print(f"P_13 = {P13}")
 
 A = 2.4e19
 B = 0
 Ta = 30000
+P0 = 10e5
 R = 8.314
 n=1
 
-def getkf(T_):
+def getkf(T13):
     return A*T13**B * np.exp(-Ta/(T13))
 
-def getc(T_):
-    return P13/(R*T13)
+def getc(T13):
+    return P0/(R*T13)
 
-def getK(T_):
+def getK(T13):
     expv = 50+(34-50)*(T13-600)/(800-600)     
     # Linear interpolation from 50-34 w.r.t. T of 600-800K. Negligible later.
     return np.exp(expv)
 
-kf = getkf(T13); c = getc(T13); #K = getK(T);
+kf = getkf(T13) # Forward reaciton coefficient
+c = getc(T13) #K = getK(T);
 X_H2 = 0.296; X_O2 = 0.148; X_N2 = 1.88
 X_H20p = 0.347; X_N2p = 0.653
 
 X_vals = [X_H2, X_O2, X_N2, X_H20p, X_N2p]
 #kr = (R*T/P)**n* kf/K # negligible later
 
-r0 = kf* c **1.6 * X_vals[0] * X_vals[1] ** 0.6 #- 2*kr * c**2 * X_H2O * X_O2p; 
+r0 = 2*kf*c**1.6 * X_vals[0] * X_vals[1] ** 0.5 #- 2*kr * c**2 * X_H2O * X_O2p; Reaciton rate at time t0
 # subtraction of products negligible
 
 print(f"Reaction rate r0 = {r0}")
-tau_comb = c * X_vals[3] / r0
+print(f"c = {c}")
+
+tau_comb = c * X_vals[3] / r0 # Time taken to reach equilibrium
+
+cond_values = condition()  # Call once to avoid redundant computation
+
+print(f" Condition values = {cond_values}")
+
+for i in range(len(tau_comb)):
+    if cond_values[i] > tau_comb[i]:
+        print("Condition > Reaction Time")
+    else:
+        print("Condition < Reaction Time")
+
 
 import matplotlib.pyplot as plt
 plt.figure()
