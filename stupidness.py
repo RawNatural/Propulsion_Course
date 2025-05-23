@@ -49,7 +49,7 @@ e_f = 2.0 # Fan Polytropic Efficiency
 #f_B = mf_B/mB # Bypass Fuel Air Ratio
 #pi_B = P_t14/P_t13
 eff_B = eff_AB # Otherwise tau_B = 1
-tau_B = 1.2 #T_t14/T_t13
+#tau_B = 1.2 #T_t14/T_t13
 
 """ Guesses """
 #M19 = 5
@@ -193,7 +193,6 @@ def M2(M0):
         M2_ = fsolve(lambda M: MFP(M,gamma_c,Rc) - MFP(M1,gamma_c,Rc)*(1/A_ratio), 0.2)[0]
     return M2_
 
-
 def M19_(M0):
     """ Mach number at point 19 """
     M19 = np.sqrt(abs((((PB_ratio_())**((gamma_t - 1)/gamma_t) - 1)*2/(gamma_t - 1))))
@@ -223,6 +222,7 @@ def tau_B_():
     tau_B_num = f["B"]*eff_B*H/(c_pt*T_0) + tau_f_()*tau['0']
     tau_B_den = tau_f_()*tau['0'] + f["B"]*tau_f_()*tau['0']
     tau_B = tau_B_num/tau_B_den
+    
     return tau_B
 
 def M13_(M0):
@@ -241,10 +241,10 @@ def M14_(M0):
         for M_13 in M13:
             M_14 = fsolve(lambda M: MFP(M,gamma_c,Rc) - MFP(M_13,gamma_c,Rc)*(1/A_ratio), M14_guess)[0]
             M14s.append(M_14)
-        M14_ = np.array(M14s)
+        M_14 = np.array(M14s)
     else:
         M14_ = fsolve(solve_M14, M14_guess, args=(M13_(M0),))
-    return M14_
+    return M_14
 
 def getCombustion_T_and_Ps(M13, M14):
     #print(f"tau = {tau}")
@@ -320,7 +320,6 @@ def setMode(mode, M0):
             "AB": 0
         })
     elif mode == 2:
-        print("Mode 2")
         tau.update({
         "c": tau_c_(),
         "f": tau_f_(),
@@ -341,12 +340,17 @@ def setMode(mode, M0):
             "AB": f_AB_()
         })
     elif mode == 3:
-        tau.update({"c": tau_c_(),
+        f.update({
+            "B": f_B_(),
+            "AB": f_AB_()
+        })
+        tau.update({
+        "c": tau_c_(),
         "f": tau_f_(),
         "t": tau_t_(),
         "0": tau_0_(M0),
         "AB": tau_AB,
-        "B": tau_B})
+        "B": tau_b})
         pi.update({"c": pi_c,
         "AB": pi_AB,
         "f": pi_f,
@@ -355,10 +359,6 @@ def setMode(mode, M0):
         "t": pi_t_(tau_t_()),
         "B": pi_B_(M14_(M0), M13_(M0)),
         "0": pi_0_(M0)})
-        f.update({
-            "B": f_B_(),
-            "AB": f_AB_()
-        })
     elif mode == 4:
         # - Also in ramjet mode, there is shock losses, so Pt2/Pt0 is something else. See lecture 8.
         tau.update({"c": 1,
@@ -366,7 +366,7 @@ def setMode(mode, M0):
         "t": 1,
         "0": tau_0_(M0),
         "AB": tau_AB,
-        "B": tau_B})
+        "B": tau_b})
         pi.update({"c": 1,
         "AB": pi_AB,
         "f": 1,
@@ -416,7 +416,7 @@ if __name__ == "__main__":
     print(f"M max = {M_max:.2f}")
 
     """Set mach range"""
-    M0 = np.linspace(1, 10, 200)  # finer resolution
+    M0 = np.linspace(1, M_max, 200)  # finer resolution
     #print(f"M0: {M0}")
 
     """Initilise other tau and pi which are dependant on M0 (or pi0)"""
@@ -555,25 +555,25 @@ if __name__ == "__main__":
 
     time_flow_bypass = condition()  # Call once to avoid redundant computation
 
-    M_bypass_burn = False
+    M_bypass_burn = False#2.96
 
     for i in range(len(tau_comb)):
         if time_flow_bypass[i] > tau_comb[i]:
             if not isinstance(M_bypass_burn, float):
-                M_bypass_burn = M0[i]
-            #print(f"Reaction OK to complete @ {M0[i]}")
-            else:
-                break
-            #print(f"Reaction will not complete @ {M0[i]}")
-    
-    
+                M_bypass_burn = M0[i - 1]
+            print(f"Reaction OK to complete @ {M0[i]}")
+        else:
+            break
+            print(f"Reaction will not complete @ {M0[i]}")
+
+    print(f"M_bypass burn = {M_bypass_burn}")
+    #setMode(2, M0)
     # Plot Winning Graph - Task 4
     ST_values = []
     SFC_values = []
     T_margins = []
     D = q_0*C_D*A_ref
     for M in M0:
-        print("here")
         if M < M_bypass_burn:
             setMode(2, M)
         elif M < M_turb_limit:
@@ -583,9 +583,8 @@ if __name__ == "__main__":
         val = ST(M) #if M < M_max else [np.nan]
         SFC_ = SFC(M) #if M < M_max else [np.nan]
         F_ = F(M)#[M]
-        print(f"This is F: {F_} Ending Here")
         T_margin = F_/D-1
-        ST_values.append(val [0])
+        ST_values.append(val[0])
         SFC_values.append(SFC_[0])    
         T_margins.append(T_margin[0])
 

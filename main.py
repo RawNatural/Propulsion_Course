@@ -415,7 +415,7 @@ if __name__ == "__main__":
     print(f"M max = {M_max:.2f}")
 
     """Set mach range"""
-    M0 = np.linspace(1, 10, 200)  # finer resolution
+    M0 = np.linspace(1, M_max, 200)  # finer resolution
     #print(f"M0: {M0}")
 
     """Initilise other tau and pi which are dependant on M0 (or pi0)"""
@@ -561,7 +561,7 @@ if __name__ == "__main__":
     for i in range(len(tau_comb)):
         if time_flow_bypass[i] > tau_comb[i]:
             if not isinstance(M_bypass_burn, float):
-                M_bypass_burn = M0[i]
+                M_bypass_burn = M0[i - 1]
             #print(f"Reaction OK to complete @ {M0[i]}")
         else:
             break
@@ -596,6 +596,10 @@ if __name__ == "__main__":
     plt.xlabel("Flight Mach Number (M0)")
     plt.ylabel("Specific Thrust [Ns/kg]")
     plt.ylim(0, 9000)
+    plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
+    plt.text(M_turb_limit, 2500, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
+    plt.axvline(x=M_max, color='gray', linestyle='--')
+    plt.text(M_max, 2500, 'Mach max ', rotation=0, va='bottom', ha='right')
     plt.title("Specific Thrust vs Flight Mach Number for Transitioning Modes")
     plt.legend()
     plt.tight_layout()
@@ -607,6 +611,10 @@ if __name__ == "__main__":
     plt.xlabel("Flight Mach Number (M0)")
     plt.ylabel("Specific Fuel Consumption [N/(kg/s)]") 
     plt.title("Specific Fuel Consumption vs Flight Mach Number for Transitioning Modes")
+    plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
+    plt.text(M_turb_limit, 0.0007, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
+    plt.axvline(x=M_max, color='gray', linestyle='--')
+    plt.text(M_max, 0.00025, 'Mach max ', rotation=0, va='bottom', ha='right')
     plt.legend()
     plt.tight_layout()
     plt.show()
@@ -621,17 +629,17 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
-    #print(f"M_bypass_burn = {M_bypass_burn:.2f}")
-    import matplotlib.pyplot as plt
-    plt.figure()
+    print(f"M_bypass_burn = {M_bypass_burn:.2f}")
+    
+    """plt.figure()
     plt.plot(T13, tau_comb, "-")
     plt.xlabel("Temperature (K)")
     plt.ylabel("Reaction time (s)")
-    plt.show()
+    plt.show()"""
 
     plt.figure()
-    plt.plot(T13, np.log(tau_comb), "-")
-    plt.xlabel("Temperature (K)")
+    plt.plot(M0, np.log(tau_comb), "-")
+    plt.xlabel("Mach Number")
     plt.ylabel("Log of reaction time")
     plt.show()
 
