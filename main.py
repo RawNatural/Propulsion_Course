@@ -60,11 +60,12 @@ Rc = c_pc*(1-1/gamma_c)
 Rt = c_pt*(1-1/gamma_t)
 a0 = np.sqrt(gamma_c*Rc*T_0)
 alpha = 1
-#M0 = np.linspace(0.1, 10, 10)
 
 def m0_(M0):
+    """ Calculates the mass flow rate m0  """
     rho0 = 100000/((M0*a0)**2)
     m_0 = rho0*a0*A_0*M0
+    m_0 = 2* q_0 /(M0*a0) * A_0
     global mC, mB
     mC = m_0/(1+alpha); mB = m_0 * alpha / (1+alpha)
     return m_0
@@ -92,6 +93,10 @@ def pi_0_(M0):
     """ Calculates stagnation to normal pressure ratio at point 0: Pt0/P0 """
     pi_0 = tau_0_(M0)**(gamma_c/(gamma_c - 1))
     return pi_0
+
+def pi_i_(M0):
+    #return (((gamma_c+1)*M0**2)/(2+(gamma_c-1)*M0**2))**(gamma_c/(gamma_c-1)) / (((2*gamma_c/(gamma_c+1))*M0**2 - (gamma_c-1)/(gamma_c+1))**(1/(gamma_c-1)))
+    return pi_d_(M0)/pi_dmax
 
 def pi_d_(M0):
     """ Calculates stagnation pressure ratio across the inlet Pt2/Pt0 """
@@ -130,6 +135,7 @@ pi = {
     "n": pi_n,
     "fn": pi_fn,
     "f": pi_f,
+    "i": 1,
     "t": None, #Initialise later
     "B": None, # Set later pi_B_(M_14, M_13),
     "d": None, #initialise as function of M0 later
@@ -141,27 +147,26 @@ f = {
     "B": None
 } #Initialise all later
 
-
 def TC_ratio(): #verified
     """ Core Temperature Ratio T9/T0 """ 
-    TC_ratio = tau['lambda']*tau['t']*(1/c_ratio) / ((1*pi['0']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t))
+    TC_ratio = tau['lambda']*tau['t']*(1/c_ratio) / ((1*pi['0']*pi['i']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t))
     return TC_ratio
 
 
 def PB_ratio_():
     """ Pressure stagnation ratio across Bypass Pt19/P19 """
-    PB_ratio = pi['fn']*pi['B']*pi['f']*pi['0']*pi['d']
+    PB_ratio = pi['fn']*pi['B']*pi['f']*pi['0']*pi['d']*pi['i']
     #print(f"pi_d = {pi['d']}")
     return PB_ratio
 
 def PC_ratio():
     """ Pressure stagnation ratio across Core Pt9/P9 """ 
     print(f"PC_ratio = {PC_ratio}")
-    return pi['n']*pi['AB']*pi['t']*pi['b']*pi['c']*pi['f']*pi['0']
+    return pi['n']*pi['AB']*pi['t']*pi['b']*pi['c']*pi['f']*pi['0']*pi['i']
 
 def M9():
     """ Mach number at point 9 """
-    return np.sqrt(abs((2/(gamma_t-1))*((1*pi['0']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t)-1)))
+    return np.sqrt(abs((2/(gamma_t-1))*((1*pi['0']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n']*pi['i'])**((gamma_t-1)/gamma_t)-1)))
 
 def MFP(M0,gamma_c,Rc):
     """
@@ -204,7 +209,6 @@ def f_B_():
     # numerator = tau['B']*tau['f']*tau['0'] - tau['f']*tau['0']
     # denominator = ((eff_B*H)/(c_pc*T_0)) - tau['B']*tau['f']*tau['0']
     global f_B
-    #f_B = np.linspace(0.1, 1, 10)
     #just set to f_st for now
     f_B = f_st
     return f_B
@@ -242,12 +246,12 @@ def M14_(M0):
     return M14_
 
 def getCombustion_T_and_Ps(M13, M14):
-    print(f"tau = {tau}")
+    #print(f"tau = {tau}")
     Tt13 = tau['0']*tau['f']*T_0
     T13 = Tt13/(1+(gamma_c-1)/2*M13**2)
     Tt14 = Tt13*tau['B']
     T14 = Tt14/(1+(gamma_c-1)/2*M14**2)
-    Pt13 = pi['0']*pi['f']*pi_dmax*T_0
+    Pt13 = pi['0']*pi['f']*pi['d']*T_0
     P13 = Pt13/((Tt13/T13)**(gamma_c/(gamma_c-1)))
     Pt14 = Pt13*pi['B']
     P14 = Pt14/((Tt14/T14)**(gamma_c/(gamma_c-1)))
@@ -260,7 +264,7 @@ def pi_B_(M_13, M_14):
 
 def TB_ratio():
     """ Bypass Temperature Ratio T19/T0 """ 
-    TB_ratio = tau['fn']*tau_B_()*tau['f']*tau['0'] / (1*pi['0']*pi['B']*pi['f']*pi['fn'])
+    TB_ratio = tau['fn']*tau_B_()*tau['f']*tau['0'] / (1*pi['0']*pi['B']*pi['f']*pi['fn']*pi['d']*pi['i'])
     return TB_ratio
 
 def f_AB_():
@@ -277,8 +281,8 @@ def tau_AB_():
 
 def F(M0):
     """ Calculates overall thrust """
-    Fcore = m0_(M0)*(a0/(1+alpha))*((1+f_()+f["AB"])*(np.sqrt(gamma_t*Rt*TC_ratio()/(gamma_c*Rc)) * M9())-M0) # P0=P9, so last term all goes to 0.
-    Fbypass = m0_(M0)*(alpha*a0/(1+alpha))*((1+f["B"])*(np.sqrt(gamma_t*Rt*TB_ratio()/(gamma_c*Rc)) * M19_(M0))-M0) # P0=P19, so last term all goes to 0.
+    Fcore = m0_(M0)*((a0/(1+alpha))*((1+f_()+f["AB"])*(np.sqrt(gamma_t*Rt*TC_ratio()/(gamma_c*Rc)) * M9())-M0)) # P0=P9, so last term all goes to 0.
+    Fbypass = m0_(M0)*((alpha*a0/(1+alpha))*((1+f["B"])*(np.sqrt(gamma_t*Rt*TB_ratio()/(gamma_c*Rc)) * M19_(M0))-M0)) # P0=P19, so last term all goes to 0.
     F_total = Fcore + Fbypass
     return F_total
 
@@ -306,6 +310,7 @@ def setMode(mode, M0):
         "t": pi_t_(tau_t_()),
         "B": 1,
         "d": pi_d_(M0),
+        "i": 1,
         "0": pi_0_(M0)})
         f.update({
             "B": 0,
@@ -325,6 +330,7 @@ def setMode(mode, M0):
         "t": pi_t_(tau_t_()),
         "B": 1,
         "d": pi_d_(M0),
+        "i": 1,
         "0": pi_0_(M0)})
         f.update({
             "B": 0,
@@ -341,6 +347,7 @@ def setMode(mode, M0):
         "AB": pi_AB,
         "f": pi_f,
         "d": pi_d_(M0),
+        "i": 1,
         "t": pi_t_(tau_t_()),
         "B": pi_B_(M14_(M0), M13_(M0)),
         "0": pi_0_(M0)})
@@ -360,7 +367,8 @@ def setMode(mode, M0):
         "AB": pi_AB,
         "f": 1,
         "t": 1,
-        "d": pi_d_(M0),
+        "d": 1,
+        "i": pi_i_(M0),
         "B": pi_B_(M14_(M0), M13_(M0)),
         "0": pi_0_(M0)})
         f.update({
@@ -373,6 +381,22 @@ def setMode(mode, M0):
 #print(f"Tau values: {tau}")
 #print(f"Pi values = {pi}")
 
+"""Part 3"""
+def M_max_():
+    M_range = np.linspace(1, 10, 200)
+    Tt0 = tau_0_(M_range)*T_0
+    for i in range(len(M_range)):
+        if Tt0[i] >= T_t4max:
+            return M_range[i-1]
+        
+def M_turb_limit_(M0):
+    f = f_()
+    for i in range(len(M0)):
+        if f[i] < 0:
+            return M0[i-1]
+        
+
+
 if __name__ == "__main__":
 
     modes = [1, 2, 3, 4]
@@ -383,9 +407,13 @@ if __name__ == "__main__":
         4: "Ramjet"
     }
 
-    M0 = np.linspace(0.1, 10, 50)  # finer resolution
-    #print(f"M0: {M0}")
+    """Find M_max"""
+    M_max = M_max_()
+    print(f"M max = {M_max:.2f}")
 
+    """Set mach range"""
+    M0 = np.linspace(1, M_max, 200)  # finer resolution
+    #print(f"M0: {M0}")
 
     """Initilise other tau and pi which are dependant on M0 (or pi0)"""
     pi['0'] = pi_0_(M0)
@@ -400,6 +428,10 @@ if __name__ == "__main__":
     pi['B'] = pi_B_(M13_(M0), M14_(M0))
     pi['d'] = pi_d_(M0)
 
+    """Find M_turb_limit"""
+    M_turb_limit = M_turb_limit_(M0)
+    print(f"M turb limit = {M_turb_limit:.2f}")
+
     print("Successfully Inititialised!")
 
     # Plot Specific Thrust (ST) vs Mach Number
@@ -408,7 +440,7 @@ if __name__ == "__main__":
         ST_values = []
         for M in M0:
             setMode(mode, M)
-            val = ST(M)
+            val = ST(M) if M < M_turb_limit or mode == 4 else np.nan
             if hasattr(val, "__len__") and not isinstance(val, str):
                 val = np.mean(val)
             ST_values.append(val)
@@ -419,6 +451,8 @@ if __name__ == "__main__":
     plt.xlabel("Flight Mach Number (M0)")
     plt.ylabel("Specific Thrust [Ns/kg]")
     plt.title("Specific Thrust vs Flight Mach Number for Different Modes")
+    plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
+    plt.text(M_turb_limit, 3000, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
     plt.legend()
     plt.tight_layout()
     plt.show()
@@ -429,7 +463,7 @@ if __name__ == "__main__":
         SFC_values = []
         for M in M0:
             setMode(mode, M)
-            val = SFC(M)
+            val = SFC(M) if M < M_turb_limit or mode == 4 else np.nan
             if hasattr(val, "__len__") and not isinstance(val, str):
                 val = np.mean(val)
             SFC_values.append(val)
@@ -446,12 +480,13 @@ if __name__ == "__main__":
 
 
     """ Task 2a """
-    M0 = np.linspace(2, 4, 200)
+    
     setMode(3, M0)
 
     L_Bb = 4 # Bypass Burner Length
 
     def V_13_():
+        """ Calculates """
         V_13 = np.sqrt(gamma_c*Rc*T13)
         return V_13
 
@@ -479,8 +514,8 @@ if __name__ == "__main__":
     A = 2.4e19
     B = 0
     Ta = 30000
-    #P0 = 10e5
-    P0 = P13
+    P0 = 1e5
+    P = P13
     #R = 8.314
     R = Rc#8.314
     n=1
@@ -489,7 +524,7 @@ if __name__ == "__main__":
         return (A*T13**B) * np.exp(-Ta/(T13))
 
     def getc(T13):
-        return P0/(Rc*T13)
+        return P/(Rc*T13)
     
     kf = getkf(T13) # Forward reaction coefficient
 
@@ -502,14 +537,14 @@ if __name__ == "__main__":
     r0 = 2*kf*c**1.5 * X_vals[0] * X_vals[1] ** 0.5 #- 2*kr * c**2 * X_vals[3]; #Reaction rate at time t0
     # subtraction of products negligible
 
-    print(f"Reaction rate r0 = {r0}")
-    print(f"c = {c}")
+    #print(f"Reaction rate r0 = {r0}")
+    #print(f"c = {c}")
 
     tau_comb = c * X_vals[3] / r0 # Time taken to reach equilibrium
 
     time_flow_bypass = condition()  # Call once to avoid redundant computation
 
-    print(f" Time for air flow through bypass = {time_flow_bypass}")
+    #print(f" Time for air flow through bypass = {time_flow_bypass}")
 
     M_bypass_burn = False
 
@@ -517,11 +552,65 @@ if __name__ == "__main__":
         if time_flow_bypass[i] > tau_comb[i]:
             if not isinstance(M_bypass_burn, float):
                 M_bypass_burn = M0[i]
-            print(f"Reaction OK to complete @ {M0[i]}")
+            #print(f"Reaction OK to complete @ {M0[i]}")
         else:
-            print(f"Reaction will not complete @ {M0[i]}")
+            break
+            #print(f"Reaction will not complete @ {M0[i]}")
+    
+    # Plot Winning Graph - Task 4
+    ST_values = []
+    SFC_values = []
+    T_margins = []
+    D = q_0*C_D*2*A_0
+    for M in M0:
+        if M < M_bypass_burn:
+            setMode(2, M)
+        elif M < M_turb_limit:
+            setMode(3, M)
+        else:
+            setMode(4, M)
+        F_ = F(M)
+        val = ST(M)
+        SFC_ = SFC(M)
+        T_margin = F_/D-1
+        #if hasattr(val, "__len__"):
+        #    val = np.mean(val)
+        ST_values.append(val[0])
+        SFC_values.append(SFC_[0])
+        T_margins.append(F_[0])
 
-    print(f"M_bypass_burn = {M_bypass_burn:.2f}")
+    plt.figure(figsize=(10, 6))
+    plt.plot(M0, ST_values, label="Specific Thrust")
+    plt.grid(True)
+    plt.xlabel("Flight Mach Number (M0)")
+    plt.ylabel("Specific Thrust [Ns/kg]")
+    plt.ylim(0, 9000)
+    plt.title("Specific Thrust vs Flight Mach Number for Transitioning Modes")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(M0, SFC_values, label="Specific Fuel Consumption")
+    plt.grid(True)
+    plt.xlabel("Flight Mach Number (M0)")
+    plt.ylabel("Specific Fuel Consumption [N/(kg/s)]") 
+    plt.title("Specific Fuel Consumption vs Flight Mach Number for Transitioning Modes")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(M0, T_margins, label="Thrust Margin")
+    plt.grid(True)
+    plt.xlabel("Flight Mach Number (M0)")
+    plt.ylabel("Thrust Margin") 
+    plt.title("Thrust Margin vs Flight Mach Number for Transitioning Modes")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    #print(f"M_bypass_burn = {M_bypass_burn:.2f}")
     import matplotlib.pyplot as plt
     plt.figure()
     plt.plot(T13, tau_comb, "-")
@@ -535,4 +624,48 @@ if __name__ == "__main__":
     plt.ylabel("Log of reaction time")
     plt.show()
 
-print(f" Maximum value of T13 ={np.max(T13)}; Minimum value of T13 = {np.min(T13)}")
+    """Part 2b"""
+
+    #print(f"Temp14 range = {T14[-1]-T14[0]}")
+
+    def getK(T_): # between mach 3-5
+        expv = -27.5+(-8.145+27.5)*(T_-T14[0])/(T14[-1]-T14[0])     
+        # Linear interpolation from -27.5 to -8.145 w.r.t. T14 between Mach 3- Mach 5. Used to find progress variable
+        return np.exp(expv)
+
+    def progress_variable():
+        return (getK(T14)*np.sqrt(2)*(P0/P14))**(2/3)
+
+    X_H2_dissociated = progress_variable()
+    percentage_hydrogen_left = X_H2_dissociated / X_vals[0] * 100
+
+    plt.figure()
+    plt.plot(M0, percentage_hydrogen_left, "-")
+    plt.xlabel("Mach number")
+    plt.ylabel("Percentage Hydrogen not burned")
+    plt.show()
+
+   
+""" Task 5 """
+
+D = q_0*C_D*2*A_0
+thrust_margins = []
+F_values = []
+for i in range(len(M0)):
+    thrust_margin = (F_values[i]/D) - 1
+    thrust_margins.append(thrust_margin)
+
+
+print(D)
+
+plt.plot(M0, thrust_margins)
+plt.title(" Thrust Margin vs M0 ")
+plt.xlabel(" Mach Number (M0) ")
+plt.ylabel(" Thrust Margin ")
+plt.show()
+                      
+
+
+
+#print(f" Maximum value of T13 ={np.max(T13)}; Minimum value of T13 = {np.min(T13)}")
+#print(f" Maximum value of T14 ={np.max(T14)}; Minimum value of T13 = {np.min(T14)}")
