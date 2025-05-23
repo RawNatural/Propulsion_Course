@@ -9,7 +9,7 @@ c_pt = 1239 # [J/kg/K]
 c_ratio = c_pt/c_pc 
 gamma_c = 1.4
 gamma_t = 1.3
-q_0 = 50 # [kPa]
+q_0 = 50000 # [kPa]
 T_0 = 250 # [K]
 A_0 = 14.4 # [m2]
 C_D = 0.03 # Drag Coefficient
@@ -467,6 +467,7 @@ if __name__ == "__main__":
         for M in M0:
             setMode(mode, M)
             val = SFC(M) if M < M_turb_limit or mode == 4 else np.nan
+            val = np.nan if SFC(M) < 0 else val
             if hasattr(val, "__len__") and not isinstance(val, str):
                 val = np.mean(val)
             SFC_values.append(val)
@@ -477,6 +478,8 @@ if __name__ == "__main__":
     plt.xlabel("Flight Mach Number (M0)")
     plt.ylabel("Specific Fuel Consumption [kg/(Ns)]")  # or your appropriate units
     plt.title("Specific Fuel Consumption vs Flight Mach Number for Different Modes")
+    plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
+    plt.text(M_turb_limit, 0.0007, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
     plt.legend()
     plt.tight_layout()
     plt.show()
@@ -580,7 +583,8 @@ if __name__ == "__main__":
         #    val = np.mean(val)
         ST_values.append(val[0])
         SFC_values.append(SFC_[0])
-        T_margins.append(F_[0])
+        #T_margins.append(F_[0])
+        T_margins.append(F_[0]/(M*a0*C_D))
 
     plt.figure(figsize=(10, 6))
     plt.plot(M0, ST_values, label="Specific Thrust")
