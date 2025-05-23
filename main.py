@@ -442,7 +442,7 @@ if __name__ == "__main__":
 
     """Find M_max"""
     M_max = M_max_()
-    print(f"M max = {M_max:.2f}")
+    #print(f"M max = {M_max:.2f}")
 
     """Set mach range"""
     M0 = np.linspace(1, M_max, 200)  # finer resolution
@@ -463,7 +463,7 @@ if __name__ == "__main__":
 
     """Find M_turb_limit"""
     M_turb_limit = M_turb_limit_(M0)
-    print(f"M turb limit = {M_turb_limit:.2f}")
+    #print(f"M turb limit = {M_turb_limit:.2f}")
 
     print("Successfully Inititialised!")
 
@@ -709,7 +709,6 @@ def margin_lim():
     M0 = np.linspace(M_max, 10, 100)
     setMode(4, M0)
     thrust_margin = (F(M0)/D) - 1
-    print(thrust_margin)
     for i, tm in enumerate(thrust_margin):
         if tm < 1:
             return M0[i-1]
