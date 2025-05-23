@@ -64,7 +64,7 @@ alpha = 1
 def m0_(M0):
     """ Calculates the mass flow rate m0  """
     #rho0 = 100000/((M0*a0)**2)
-    #m_0 = rho0*a0*A_0*M0
+    #m_0 = rho0*a0*2*A_0*M0
     m_0 = 2* q_0 /(M0*a0) * A_0 * 2
     global mC, mB
     mC = m_0/(1+alpha); mB = m_0 * alpha / (1+alpha)
@@ -320,6 +320,7 @@ def setMode(mode, M0):
             "AB": 0
         })
     elif mode == 2:
+        print("Mode 2")
         tau.update({
         "c": tau_c_(),
         "f": tau_f_(),
@@ -443,7 +444,7 @@ if __name__ == "__main__":
         ST_values = []
         for M in M0:
             setMode(mode, M)
-            val = ST(M) if M < M_turb_limit or mode == 4 and M < M_max  else np.nan
+            val = ST(M) if M < M_turb_limit or mode == 4 and M < M_max else np.nan
             if hasattr(val, "__len__") and not isinstance(val, str):
                 val = np.mean(val)
             ST_values.append(val)
@@ -481,7 +482,7 @@ if __name__ == "__main__":
     plt.ylabel("Specific Fuel Consumption [kg/(Ns)]")  # or your appropriate units
     plt.title("Specific Fuel Consumption vs Flight Mach Number for Different Modes")
     plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
-    plt.text(M_turb_limit, 0.0007, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
+    plt.text(M_turb_limit, 0.00075, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
     plt.axvline(x=M_max, color='gray', linestyle='--')
     plt.text(M_max, 0.00025, 'Mach max ', rotation=0, va='bottom', ha='right')
     plt.legend()
@@ -490,15 +491,15 @@ if __name__ == "__main__":
 
 
     """ Task 2a """
-    
+    #M_range_comb = np.linspace(1, 5, 200)
     setMode(3, M0)
 
     L_Bb = 4 # Bypass Burner Length
 
-    def V_13_():
-        """ Calculates """
-        V_13 = np.sqrt(gamma_c*Rc*T13)
-        return V_13
+    #def V_13_(T13):
+    #    """ Calculates """
+    #    V_13 = np.sqrt(gamma_c*Rc*T13)
+     #   return V_13
 
     [T_vals, P_vals] = getCombustion_T_and_Ps(M13_(M0), M14_(M0))
     T13, T14 = T_vals
@@ -554,8 +555,6 @@ if __name__ == "__main__":
 
     time_flow_bypass = condition()  # Call once to avoid redundant computation
 
-    #print(f" Time for air flow through bypass = {time_flow_bypass}")
-
     M_bypass_burn = False
 
     for i in range(len(tau_comb)):
@@ -563,9 +562,10 @@ if __name__ == "__main__":
             if not isinstance(M_bypass_burn, float):
                 M_bypass_burn = M0[i]
             #print(f"Reaction OK to complete @ {M0[i]}")
-        else:
-            break
+            else:
+                break
             #print(f"Reaction will not complete @ {M0[i]}")
+    
     
     # Plot Winning Graph - Task 4
     ST_values = []
@@ -573,21 +573,20 @@ if __name__ == "__main__":
     T_margins = []
     D = q_0*C_D*A_ref
     for M in M0:
+        print("here")
         if M < M_bypass_burn:
             setMode(2, M)
         elif M < M_turb_limit:
             setMode(3, M)
         else:
             setMode(4, M)
-        F_ = F(M)
-        val = ST(M)
-        SFC_ = SFC(M)
+        val = ST(M) #if M < M_max else [np.nan]
+        SFC_ = SFC(M) #if M < M_max else [np.nan]
+        F_ = F(M)#[M]
+        print(f"This is F: {F_} Ending Here")
         T_margin = F_/D-1
-        #if hasattr(val, "__len__"):
-        #    val = np.mean(val)
-        ST_values.append(val[0])
-        SFC_values.append(SFC_[0])
-        #T_margins.append(F_[0])
+        ST_values.append(val [0])
+        SFC_values.append(SFC_[0])    
         T_margins.append(T_margin[0])
 
     plt.figure(figsize=(10, 6))
@@ -596,6 +595,7 @@ if __name__ == "__main__":
     plt.xlabel("Flight Mach Number (M0)")
     plt.ylabel("Specific Thrust [Ns/kg]")
     plt.ylim(0, 9000)
+    plt.xlim(1, 6)
     plt.title("Specific Thrust vs Flight Mach Number for Transitioning Modes")
     plt.legend()
     plt.tight_layout()
@@ -606,33 +606,10 @@ if __name__ == "__main__":
     plt.grid(True)
     plt.xlabel("Flight Mach Number (M0)")
     plt.ylabel("Specific Fuel Consumption [N/(kg/s)]") 
+    plt.xlim(1, 6)
     plt.title("Specific Fuel Consumption vs Flight Mach Number for Transitioning Modes")
     plt.legend()
     plt.tight_layout()
-    plt.show()
-
-    plt.figure(figsize=(10, 6))
-    plt.plot(M0, T_margins, label="Thrust Margin")
-    plt.grid(True)
-    plt.xlabel("Flight Mach Number (M0)")
-    plt.ylabel("Thrust Margin") 
-    plt.title("Thrust Margin vs Flight Mach Number for Transitioning Modes")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
-
-    #print(f"M_bypass_burn = {M_bypass_burn:.2f}")
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.plot(T13, tau_comb, "-")
-    plt.xlabel("Temperature (K)")
-    plt.ylabel("Reaction time (s)")
-    plt.show()
-
-    plt.figure()
-    plt.plot(T13, np.log(tau_comb), "-")
-    plt.xlabel("Temperature (K)")
-    plt.ylabel("Log of reaction time")
     plt.show()
 
     """Part 2b"""
@@ -650,39 +627,56 @@ if __name__ == "__main__":
     X_H2_dissociated = progress_variable()
     percentage_hydrogen_left = X_H2_dissociated / X_vals[0] * 100
 
+    print(f"M_bypass_burned: {M_bypass_burn:.2f}")
+
     plt.figure()
+    plt.plot(T13, np.log(tau_comb), "-")
+    plt.title("Log of Reaction Time vs Temperature")
+    plt.xlabel("Temperature (K)")
+    plt.ylabel("Log of reaction time")
+    plt.show()
+
+    plt.figure()
+    plt.title("% Hydrogen not burned vs Mach Number")
     plt.plot(M0, percentage_hydrogen_left, "-")
     plt.xlabel("Mach number")
+    #plt.xlim(1,5)
     plt.ylabel("Percentage Hydrogen not burned")
     plt.show()
 
+    plt.figure()
+    plt.plot
+    plt.plot(T13, percentage_hydrogen_left, "-")
+    plt.xlabel("Temperature (K)")
+    #plt.xlim(1,5)
+    plt.ylabel("Percentage Hydrogen not burned")
+    plt.show()
+
+
+    plt.figure(figsize=(10, 6))
+    plt.plot(M0, T_margins, label="Thrust Margin")
+    plt.grid(True)
+    plt.xlabel("Flight Mach Number (M0)")
+    plt.ylabel("Thrust Margin") 
+    plt.title("Thrust Margin vs Flight Mach Number for Transitioning Modes")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    #plt.figure()
+    #plt.plot(T13, tau_comb, "-")
+    #plt.xlabel("Temperature (K)")
+    #plt.ylabel("Reaction time (s)")
+    #plt.show()
    
+""" Task 5 """
+
 def margin_lim(M0):
     for i in range(len(M0)):
         if T_margins[i] < 1:
             return M0[i-1]
 
 print(f" Thrust Margin Limit = {margin_lim(M0)}")
-
-""" Task 5 """
-"""
-D = q_0*C_D*2*A_0
-thrust_margins = []
-F_values = []
-for i in range(len(M0)):
-    thrust_margin = (F_values[i]/D) - 1
-    thrust_margins.append(thrust_margin)
-
-
-print(D)
-
-plt.plot(M0, thrust_margins)
-plt.title(" Thrust Margin vs M0 ")
-plt.xlabel(" Mach Number (M0) ")
-plt.ylabel(" Thrust Margin ")
-plt.show()
- """         
-
 
 #print(f" Maximum value of T13 ={np.max(T13)}; Minimum value of T13 = {np.min(T13)}")
 #print(f" Maximum value of T14 ={np.max(T14)}; Minimum value of T13 = {np.min(T14)}")
