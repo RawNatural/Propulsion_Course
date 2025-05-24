@@ -9,7 +9,7 @@ c_pt = 1239 # [J/kg/K]
 c_ratio = c_pt/c_pc 
 gamma_c = 1.4
 gamma_t = 1.3
-q_0 = 50000 # [kPa]
+q_0 = 50000 # [Pa]
 T_0 = 250 # [K]
 A_0 = 14.4 # [m2]
 C_D = 0.03 # Drag Coefficient
@@ -17,7 +17,8 @@ A_ref = 382 # [m2]
 
 """ Fuel Properties """
 H = 120e6 # [J/kg]
-f_st = 2.38 # Stoichiometric fuel ratio
+f_st = 2.38 
+#f_st = 0.0291 # Stoichiometric fuel ratio
 phi = 1 # Maximum Equivalence Ratio
 
 """ Inlet Modelling """
@@ -123,7 +124,7 @@ tau = {
     "f": tau_f_(),
     "0": None, #functions of M0 - iniitiate upon M0 creation
     "t": None, #initialise later
-    "AB": tau_AB,
+    "AB": None, #initialise later
     "B": None #Initialise later 
 }
 
@@ -207,8 +208,8 @@ def f_():
 
 def f_B_():
     """ Caclulates fuel air ratio for bypass """
-    # numerator = tau['B']*tau['f']*tau['0'] - tau['f']*tau['0']
-    # denominator = ((eff_B*H)/(c_pc*T_0)) - tau['B']*tau['f']*tau['0']
+    #numerator = tau['B']*tau['f']*tau['0'] - tau['f']*tau['0']
+    #denominator = ((eff_B*H)/(c_pc*T_0)) - tau['B']*tau['f']*tau['0']
     global f_B
     #just set to f_st for now
     f_B = f_st
@@ -219,8 +220,8 @@ def tau_t_(): #uses f()
     return tau_t
 
 def tau_B_():
-    """ Calculates tau['B'] """ # We could use slide from lec 8 here instead. It would be a function of M13 and M14 only.
-    tau_B_num = f["B"]*eff_B*H/(c_pt*T_0) + tau_f_()*tau['0']
+    """ Calculates tau['B'] """ 
+    tau_B_num = f["B"]*eff_B*H/(c_pc*T_0) + tau_f_()*tau['0']
     tau_B_den = tau_f_()*tau['0'] + f["B"]*tau_f_()*tau['0']
     tau_B = tau_B_num/tau_B_den
     return tau_B
@@ -229,12 +230,13 @@ def M13_(M0):
     #return np.sqrt(abs((((pi_f*pi['0'])**((gamma_t - 1)/gamma_t) - 1)*2/(gamma_t - 1))))
     return M2(M0)
 
-#def solve_M14(M14, M13):
-#    return ((((1 + ((gamma_c - 1) / 2) * M14**2) / (1 + ((gamma_c - 1) / 2) * M13**2)) * (M14 / M13)**2 ) * ((1 + gamma_c * M13**2) / (1 + gamma_c * M14**2))**2) - tau['B']
 def solve_M14(M14, M13, tau_B_val):
     M14 = M14[0] if isinstance(M14, (np.ndarray, list)) else M14
-    return ((((1 + ((gamma_c - 1) / 2) * M14**2) / (1 + ((gamma_c - 1) / 2) * M13**2)) * (M14 / M13)**2 )
-            * ((1 + gamma_c * M13**2) / (1 + gamma_c * M14**2))**2) - tau_B_val#1.2#tau['B']
+    M_14 = ((((1 + ((gamma_c - 1) / 2) * M14**2) / (1 + ((gamma_c - 1) / 2) * M13**2)) 
+             * (M14 / M13)**2 ) * ((1 + gamma_c * M13**2) / (1 + gamma_c * M14**2))**2) - tau_B_val#1.2#tau['B']
+    M_14 = 0.99 if M_14 >= 0.99 else 0.01 if M_14 < 0 else M_14
+    return M_14
+
 
 def M14_(M0):
     M13_vals = M13_(M0)
@@ -253,28 +255,6 @@ def M14_(M0):
         M14s.append(M_14)
 
     return M14s[0] if len(M14s) == 1 else np.array(M14s)
-
-"""def M14_(M0):
-    M13_vals = M13_(M0)
-    M14_guess = 0.2
-    M14s = []
-    tau_B_val = 0
-    if isinstance(tau['B'], (np.ndarray, list)):
-        tau_B_vals = tau['B']
-        if len(tau_B_vals == 1):
-            tau_B_val = tau_B_vals[0]
-        else:
-            for tauB in tau_B_vals:
-                M_14 = fsolve(solve_M14, M14_guess, args=(M_13,tauB))[0]
-    if isinstance(M13_vals, (np.ndarray, list)):
-        #for M_13, tau_B_val in zip(M13_vals, tau_B_vals):
-        for M_13 in M13_vals:
-            M_14 = fsolve(solve_M14, M14_guess, args=(M_13,))[0]
-            M14s.append(M_14)
-        M14_ = np.array(M14s)
-    else:
-        M14_ = fsolve(solve_M14, M14_guess, args=(M13_vals, tau['B']))[0]
-    return M14_"""
 
 def getCombustion_T_and_Ps(M13, M14):
     #print(f"tau = {tau}")
@@ -308,6 +288,7 @@ def tau_AB_():
     tau_AB_num = f["AB"]*(eff_AB*H/(c_pt*T_0)) + tau_t_()*tau_lambda*(1 + f_())
     tau_AB_den = tau_t_()*tau_lambda*(1 + f_()) + f["AB"]*tau_t_()*tau_lambda
     tau_AB = tau_AB_num/tau_AB_den
+    #tau_AB = 1.2
     return tau_AB
 
 def F(M0):
@@ -355,7 +336,7 @@ def setMode(mode, M0):
         "f": tau_f_(),
         "t": tau_t_(),
         "0": tau_0_(M0),
-        "AB": tau_AB,
+        "AB": tau_AB_(),
         "B": 1})
         pi.update({"c": pi_c,
         "AB": pi_AB,
@@ -374,8 +355,8 @@ def setMode(mode, M0):
         "f": tau_f_(),
         "t": tau_t_(),
         "0": tau_0_(M0),
-        "AB": tau_AB,
-        "B": tau_B})
+        "AB": tau_AB_(),
+        "B": tau_B_()})
         pi.update({"c": pi_c,
         "AB": pi_AB,
         "f": pi_f,
@@ -394,8 +375,8 @@ def setMode(mode, M0):
         "f": 1,
         "t": 1,
         "0": tau_0_(M0),
-        "AB": tau_AB,
-        "B": tau_B})
+        "AB": tau_AB_(),
+        "B": tau_B_()})
         pi.update({"c": 1,
         "AB": pi_AB,
         "f": 1,
@@ -460,6 +441,7 @@ if __name__ == "__main__":
     tau['B'] = tau_B_()
     pi['B'] = pi_B_(M13_(M0), M14_(M0))
     pi['d'] = pi_d_(M0)
+    tau['AB'] = tau_AB_()
 
     """Find M_turb_limit"""
     M_turb_limit = M_turb_limit_(M0)
@@ -485,9 +467,9 @@ if __name__ == "__main__":
     plt.ylabel("Specific Thrust [Ns/kg]")
     plt.title("Specific Thrust vs Flight Mach Number for Different Modes")
     plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
-    plt.text(M_turb_limit, 2500, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
+    plt.text(M_turb_limit, 700, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
     plt.axvline(x=M_max, color='gray', linestyle='--')
-    plt.text(M_max, 2500, 'Mach max ', rotation=0, va='bottom', ha='right')
+    plt.text(M_max, 700, 'Mach max ', rotation=0, va='bottom', ha='right')
     plt.legend()
     plt.tight_layout()
     plt.show()
@@ -547,7 +529,6 @@ if __name__ == "__main__":
             conditions.append(cond)
         return conditions
 
-    # print(f"Conditions = {condition()}")
     # print(f"T_13 = {T13}")
     # print(f"P_13 = {P13}")
 
@@ -712,9 +693,5 @@ def margin_lim():
     for i, tm in enumerate(thrust_margin):
         if tm < 1:
             return M0[i-1]
-#print(D)
+
 print(f" Thrust Margin Limit = {margin_lim():.2f}")
-
-
-#print(f" Maximum value of T13 ={np.max(T13)}; Minimum value of T13 = {np.min(T13)}")
-#print(f" Maximum value of T14 ={np.max(T14)}; Minimum value of T13 = {np.min(T14)}")
