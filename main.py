@@ -18,7 +18,7 @@ A_ref = 382 # [m2]
 """ Fuel Properties """
 H = 120e6 # [J/kg]
 f_st = 2.38 
-#f_st = 0.0291 # Stoichiometric fuel ratio
+# f_st = 0.0291 # Stoichiometric fuel ratio
 phi = 1 # Maximum Equivalence Ratio
 
 """ Inlet Modelling """
@@ -194,7 +194,6 @@ def M2(M0):
         M2_ = fsolve(lambda M: MFP(M,gamma_c,Rc) - MFP(M1,gamma_c,Rc)*(1/A_ratio), 0.2)[0]
     return M2_
 
-
 def M19_(M0):
     """ Mach number at point 19 """
     M19 = np.sqrt(abs((((PB_ratio_())**((gamma_t - 1)/gamma_t) - 1)*2/(gamma_t - 1))))
@@ -227,7 +226,9 @@ def tau_B_():
     return tau_B
 
 def M13_(M0):
+    """ Returns M13 """
     #return np.sqrt(abs((((pi_f*pi['0'])**((gamma_t - 1)/gamma_t) - 1)*2/(gamma_t - 1))))
+    # Valid Assumption as fan doesn't significantly alter the Mach number of the flow entering the bypass burner
     return M2(M0)
 
 def solve_M14(M14, M13, tau_B_val):
@@ -237,8 +238,8 @@ def solve_M14(M14, M13, tau_B_val):
     M_14 = 0.99 if M_14 >= 0.99 else 0.01 if M_14 < 0 else M_14
     return M_14
 
-
 def M14_(M0):
+    """ Calculates """
     M13_vals = M13_(M0)
     tau_B_vals = tau['B']
     M14_guess = 0.2
@@ -297,8 +298,6 @@ def F(M0):
     Fbypass = m0_(M0)*((alpha*a0/(1+alpha))*((1+f["B"])*(np.sqrt(gamma_t*Rt*TB_ratio()/(gamma_c*Rc)) * M19_(M0))-M0)) # P0=P19, so last term all goes to 0.
     F_total = Fcore + Fbypass
     return F_total
-
-
 
 def ST(M0):
     " Calculates specific thrust "
@@ -397,18 +396,21 @@ def setMode(mode, M0):
 
 """Part 3"""
 def M_max_():
+    """ """
     M_range = np.linspace(1, 10, 200)
     Tt0 = tau_0_(M_range)*T_0
     for i in range(len(M_range)):
         if Tt0[i] >= T_t4max:
             return M_range[i-1]
-        
+
+print(f" M_max = {M_max_()}")
+
 def M_turb_limit_(M0):
     f = f_()
     for i in range(len(M0)):
         if f[i] < 0:
             return M0[i-1]
-        
+
 
 
 if __name__ == "__main__":
@@ -500,17 +502,11 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
-
     """ Task 2a """
     
     setMode(3, M0)
 
     L_Bb = 4 # Bypass Burner Length
-
-    def V_13_():
-        """ Calculates """
-        V_13 = np.sqrt(gamma_c*Rc*T13)
-        return V_13
 
     [T_vals, P_vals] = getCombustion_T_and_Ps(M13_(M0), M14_(M0))
     T13, T14 = T_vals
@@ -518,6 +514,7 @@ if __name__ == "__main__":
     L_Bb = 4 # Bypass Burner Length
 
     def V_13_():
+        """ Calculates V13 """
         V_13 = np.sqrt(gamma_c*Rc*T13)*M13_(M0)
         return V_13
 
@@ -599,7 +596,6 @@ if __name__ == "__main__":
         SFC_values.append(np.atleast_1d(SFC_)[0])
         T_margins.append(np.atleast_1d(T_margin)[0])
 
-
     plt.figure(figsize=(10, 6))
     plt.plot(M0, ST_values, label="Specific Thrust")
     plt.grid(True)
@@ -634,15 +630,15 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.show()
 
-    plt.figure(figsize=(10, 6))
-    plt.plot(M0, T_margins, label="Thrust Margin")
-    plt.grid(True)
-    plt.xlabel("Flight Mach Number (M0)")
-    plt.ylabel("Thrust Margin") 
-    plt.title("Thrust Margin vs Flight Mach Number for Transitioning Modes")
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    # plt.figure(figsize=(10, 6))
+    # plt.plot(M0, T_margins, label="Thrust Margin")
+    # plt.grid(True)
+    # plt.xlabel("Flight Mach Number (M0)")
+    # plt.ylabel("Thrust Margin") 
+    # plt.title("Thrust Margin vs Flight Mach Number for Transitioning Modes")
+    # plt.legend()
+    # plt.tight_layout()
+    # plt.show()
 
     print(f"M_bypass_burn = {M_bypass_burn:.2f}")
     
@@ -654,6 +650,7 @@ if __name__ == "__main__":
 
     plt.figure()
     plt.plot(M0, np.log(tau_comb), "-")
+    plt.title("Log of reaction time vs Mach Number")
     plt.xlabel("Mach Number")
     plt.ylabel("Log of reaction time")
     plt.show()
@@ -663,35 +660,87 @@ if __name__ == "__main__":
     #print(f"Temp14 range = {T14[-1]-T14[0]}")
 
     def getK(T_): # between mach 3-5
+        """ Calculation of reaction coefficient using interpolation """
         expv = -27.5+(-8.145+27.5)*(T_-T14[0])/(T14[-1]-T14[0])     
         # Linear interpolation from -27.5 to -8.145 w.r.t. T14 between Mach 3- Mach 5. Used to find progress variable
         return np.exp(expv)
 
     def progress_variable():
+        """ Calculates the progress variable after each iteration """
         return (getK(T14)*np.sqrt(2)*(P0/P14))**(2/3)
 
     X_H2_dissociated = progress_variable()
     percentage_hydrogen_left = X_H2_dissociated / X_vals[0] * 100
 
+    print(f" Max Percentage of H2 left ={np.max(percentage_hydrogen_left)}")
+    print(f" Min Percentage of H2 left = {np.min(percentage_hydrogen_left)}")
+
     plt.figure()
     plt.plot(M0, percentage_hydrogen_left, "-")
+    plt.title(" % H2 not burned vs Mach Number ")
     plt.xlabel("Mach number")
     plt.ylabel("Percentage Hydrogen not burned")
     plt.show()
 
    
-def margin_lim(M0):
-    for i in range(len(M0)):
-        if T_margins[i] < 1:
-            return M0[i-1]
+# def margin_lim(M0):
+#     for i in range(len(M0)):
+#         if T_margins[i] < 1:
+#             return M0[i-1]
 
 """ Task 5: Getting the margin limit value (which is above M_Max """
-def margin_lim():
-    M0 = np.linspace(M_max, 10, 100)
+
+# def margin_lim():
+#     """ Returns Thrust Margin Limit """
+#     M0 = np.linspace(M_max, 10, 100)
+#     setMode(4, M0)
+#     thrust_margin = (F(M0)/D) - 1
+#     for i, tm in enumerate(thrust_margin):
+#         if tm < 1:
+#             return M0[i-1]
+        
+# plt.figure(figsize=(10, 6))
+# plt.plot(M0, T_margins, label="Thrust Margin")
+# plt.grid(True)
+# plt.xlabel("Flight Mach Number (M0)")
+# plt.ylabel("Thrust Margin") 
+# plt.title("Thrust Margin vs Flight Mach Number for Transitioning Modes")
+# plt.legend()
+# plt.tight_layout()
+# plt.show()
+
+def margin_lim(M_max, D, F, setMode):
+    """
+    """
+    M0 = np.linspace(M_max, 15, 100)
     setMode(4, M0)
-    thrust_margin = (F(M0)/D) - 1
+    thrust_margin = (F(M0) / D) - 1
+
+    # Find the Mach number just before thrust margin drops below 1
     for i, tm in enumerate(thrust_margin):
         if tm < 1:
-            return M0[i-1]
+            margin_limit = M0[i - 1] if i > 0 else M0[0]
+            break
+    else:
+        margin_limit = M0[-1]  # All margins are ≥ 1
 
-print(f" Thrust Margin Limit = {margin_lim():.2f}")
+    # Plot
+    plt.figure(figsize=(10, 6))
+    plt.plot(M0, thrust_margin, label="Thrust Margin")
+    plt.grid(True)
+    plt.xlabel("Flight Mach Number (M0)")
+    plt.ylabel("Thrust Margin")
+    plt.title("Thrust Margin vs Flight Mach Number for Transitioning Modes")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    return margin_limit
+
+margin_limit = margin_lim(M_max, D, F, setMode)
+print("Thrust Margin drops below 1 at M0 =", margin_limit)
+
+# print(f"Margin limit occurs at {margin_lim()}")
+# print(f" Thrust Margin Limit = {margin_lim():.2f}")
+
+
