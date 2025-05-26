@@ -3,6 +3,11 @@ import matplotlib.pyplot as plt
 import sys
 from scipy.optimize import fsolve
 
+"""Changes:
+tauAB in TC ratio
+
+"""
+
 """ General Assumptions """
 c_pc = 1004 # [J/kg/K]
 c_pt = 1239 # [J/kg/K]
@@ -17,8 +22,8 @@ A_ref = 382 # [m2]
 
 """ Fuel Properties """
 H = 120e6 # [J/kg]
-f_st = 2.38 
-#f_st = 0.0291 # Stoichiometric fuel ratio
+#f_st = 2.38 
+f_st = 0.0291 # Stoichiometric fuel ratio
 phi = 1 # Maximum Equivalence Ratio
 
 """ Inlet Modelling """
@@ -40,7 +45,8 @@ T_t4max = 2000 # [K] - Turbine Entry Stagnation Temperature
 tau_lambda = (c_pt/c_pc)*(T_t4max/T_0)
 #f = mf/mc # Burner Fuel Air Ratio
 #f_AB = mf_AB/mc # Afterburner Fuel Air Ratio
-tau_AB = 1.2 #T_t7/T_t5
+#tau_AB = 1.2 #T_t7/T_t5
+f_Bmax = f_st
 
 """ Bypass Modelling Parameters """
 pi_f = 2.0 # Fan Stagnation Pressure Ratio
@@ -50,7 +56,7 @@ e_f = 2.0 # Fan Polytropic Efficiency
 #f_B = mf_B/mB # Bypass Fuel Air Ratio
 #pi_B = P_t14/P_t13
 eff_B = eff_AB # Otherwise tau_B = 1
-tau_B = 1.2 #T_t14/T_t13
+#tau_B = 1.2 #T_t14/T_t13
 
 """ Guesses """
 #M19 = 5
@@ -67,18 +73,18 @@ def m0_(M0):
     #rho0 = 100000/((M0*a0)**2)
     #m_0 = rho0*a0*A_0*M0
     m_0 = 2* q_0 /(M0*a0) * A_0 * 2
-    global mC, mB
     mC = m_0/(1+alpha); mB = m_0 * alpha / (1+alpha)
     return m_0
 
 def tau_c_():
     """ Calculates temperature stagnation ratio Tt3/Tt2 across compressor """
-    tau_c = pi_c**((gamma_c - 1)/(gamma_c*e_c))
+    tau_c = pi['c']**((gamma_c - 1)/(gamma_c*e_c))
+    #tau_c = 1.5
     return tau_c
 
 def tau_f_():
     """ Calculates temperature stagnation ratio Tt13/Tt2 across fan """
-    tau_f = pi_f**((gamma_c - 1)/(gamma_c*e_f))
+    tau_f = pi['f']**((gamma_c - 1)/(gamma_c*e_f))
     return tau_f
 
 def tau_0_(M0):
@@ -86,19 +92,19 @@ def tau_0_(M0):
     tau_0 = 1 + (((gamma_c - 1)/2) * M0**2)
     return tau_0
 
-
-def pi_t_(tau_t): # Turbine Stagnation Pressure Ratio
+def pi_t_(): # Turbine Stagnation Pressure Ratio
     #tau_t = pi_t**(e_t*(gamma_t - 1)/gamma_t) #rearrange to:
-    return tau_t**((gamma_t)/(e_t*(gamma_t-1)))
+    pi_t = tau['t']**((gamma_t)/(e_t*(gamma_t-1)))
+    return pi_t
 
 def pi_0_(M0):
     """ Calculates stagnation to normal pressure ratio at point 0: Pt0/P0 """
     pi_0 = tau_0_(M0)**(gamma_c/(gamma_c - 1))
     return pi_0
 
-def pi_i_(M0):
+def pi_i_():
     #return (((gamma_c+1)*M0**2)/(2+(gamma_c-1)*M0**2))**(gamma_c/(gamma_c-1)) / (((2*gamma_c/(gamma_c+1))*M0**2 - (gamma_c-1)/(gamma_c+1))**(1/(gamma_c-1)))
-    return pi_d_(M0)/pi_dmax
+    return pi['d']/pi_dmax
 
 def pi_d_(M0):
     """ Calculates stagnation pressure ratio across the inlet Pt2/Pt0 """
@@ -113,15 +119,14 @@ def pi_d_(M0):
         eff_r = 1 if M0 <= 1 else 1-0.075*(M0-1)**1.35 if M0 < 5 else 800/(M0**4+985)
         pi_d = eff_r * pi_dmax
         return pi_d
-    
 
 """Set all tau's and pi's in a dictionary"""
 tau = {
-    "c": tau_c_(),
+    "c": None, #initialis later
     "lambda": tau_lambda,
     "n": tau_n,
     "fn": tau_fn,
-    "f": tau_f_(),
+    "f": None, #initialise later
     "0": None, #functions of M0 - iniitiate upon M0 creation
     "t": None, #initialise later
     "AB": None, #initialise later
@@ -145,25 +150,25 @@ pi = {
 }
 
 f = {
+    "f": None,
     "AB": None,
-    "B": None
+    "B": None,
+    "Bmax": f_st
 } #Initialise all later
+current_mode = False
 
 def TC_ratio(): #verified
     """ Core Temperature Ratio T9/T0 """ 
-    TC_ratio = tau['lambda']*tau['t']*(1/c_ratio) / ((1*pi['0']*pi['i']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t))
+    TC_ratio = tau['lambda']*tau['t']*tau['AB']*(1/c_ratio) / ((1*pi['0']*pi['i']*pi['d']*pi['c']*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t))
     return TC_ratio
-
 
 def PB_ratio_():
     """ Pressure stagnation ratio across Bypass Pt19/P19 """
     PB_ratio = pi['fn']*pi['B']*pi['f']*pi['0']*pi['d']*pi['i']
-    #print(f"pi_d = {pi['d']}")
     return PB_ratio
 
 def PC_ratio():
     """ Pressure stagnation ratio across Core Pt9/P9 """ 
-    print(f"PC_ratio = {PC_ratio}")
     return pi['n']*pi['AB']*pi['t']*pi['b']*pi['c']*pi['f']*pi['0']*pi['i']
 
 def M9():
@@ -202,27 +207,26 @@ def M19_(M0):
 
 def f_():
     """ Calculates fuel air ratio for burner """
-    f_numerator = tau_lambda - tau_c_()*tau['0']
-    f_denominator = (eff_b*H)/(c_pc*T_0) -tau_lambda
+    f_numerator = tau_lambda - tau['c']*tau['0']
+    f_denominator = (eff_b*H)/(c_pc*T_0) - tau_lambda
     return f_numerator/f_denominator
 
 def f_B_():
     """ Caclulates fuel air ratio for bypass """
     #numerator = tau['B']*tau['f']*tau['0'] - tau['f']*tau['0']
     #denominator = ((eff_B*H)/(c_pc*T_0)) - tau['B']*tau['f']*tau['0']
-    global f_B
-    #just set to f_st for now
-    f_B = f_st
+    #just set to f_st for now # limit to choking.
+    f_B = f_st if f_st <= f['Bmax'] else f['Bmax']
     return f_B
 
 def tau_t_(): #uses f()
-    tau_t = 1 - ((tau_c_()-1)+alpha*(tau_f_()-1)) / (tau_lambda*(1+f_()))
+    tau_t = 1 - tau['0']*((tau['c']-1)+alpha*(tau['f']-1)) / (tau_lambda*(1+f['f'])*eff_m)
     return tau_t
 
 def tau_B_():
     """ Calculates tau['B'] """ 
-    tau_B_num = f["B"]*eff_B*H/(c_pc*T_0) + tau_f_()*tau['0']
-    tau_B_den = tau_f_()*tau['0'] + f["B"]*tau_f_()*tau['0']
+    tau_B_num = f["B"]*eff_B*H/(c_pc*T_0) + tau['f']*tau['0']
+    tau_B_den = tau['f']*tau['0'] + f["B"]*tau['f']*tau['0']
     tau_B = tau_B_num/tau_B_den
     return tau_B
 
@@ -252,12 +256,16 @@ def M14_(M0):
 
     for M_13, tauB in zip(M13_vals, tau_B_vals):
         M_14 = fsolve(solve_M14, M14_guess, args=(M_13, tauB))[0]
-        M14s.append(M_14)
-
+        if M_14 < 0.99:
+            f['B'] = f_st
+        while M_14 > 0.99:
+            f['B'] -= 0.001
+            M_14 = fsolve(solve_M14, M14_guess, args=(M_13, tauB))[0]
+        M14s.append(M_14) 
+        f['Bmax'] = f['B']
     return M14s[0] if len(M14s) == 1 else np.array(M14s)
 
 def getCombustion_T_and_Ps(M13, M14):
-    #print(f"tau = {tau}")
     Tt13 = tau['0']*tau['f']*T_0
     T13 = Tt13/(1+(gamma_c-1)/2*M13**2)
     Tt14 = Tt13*tau['B']
@@ -275,30 +283,27 @@ def pi_B_(M_13, M_14):
 
 def TB_ratio():
     """ Bypass Temperature Ratio T19/T0 """ 
-    TB_ratio = tau['fn']*tau_B_()*tau['f']*tau['0'] / (1*pi['0']*pi['B']*pi['f']*pi['fn']*pi['d']*pi['i'])
+    TB_ratio = tau['fn']*tau['B']*tau['f']*tau['0'] / (1*pi['0']*pi['B']*pi['f']*pi['fn']*pi['d']*pi['i'])
     return TB_ratio
 
 def f_AB_():
     """ Calculates fuel air ratio for after burner """
-    global f_AB
     f_AB = f_st - f_()
     return f_AB
 
 def tau_AB_():
-    tau_AB_num = f["AB"]*(eff_AB*H/(c_pt*T_0)) + tau_t_()*tau_lambda*(1 + f_())
-    tau_AB_den = tau_t_()*tau_lambda*(1 + f_()) + f["AB"]*tau_t_()*tau_lambda
+    tau_AB_num = f["AB"]*(eff_AB*H/(c_pt*T_0)) + tau['t']*tau_lambda*(1/c_ratio)*(1 + f_())
+    tau_AB_den = tau['t']*tau_lambda*(1/c_ratio)*(1 + f['f'] + f["AB"])
     tau_AB = tau_AB_num/tau_AB_den
     #tau_AB = 1.2
     return tau_AB
 
 def F(M0):
     """ Calculates overall thrust """
-    Fcore = m0_(M0)*((a0/(1+alpha))*((1+f_()+f["AB"])*(np.sqrt(gamma_t*Rt*TC_ratio()/(gamma_c*Rc)) * M9())-M0)) # P0=P9, so last term all goes to 0.
+    Fcore = m0_(M0)*((a0/(1+alpha))*((1+f['f']+f['AB'])*(np.sqrt(gamma_t*Rt*TC_ratio()/(gamma_c*Rc)) * M9())-M0)) # P0=P9, so last term all goes to 0.
     Fbypass = m0_(M0)*((alpha*a0/(1+alpha))*((1+f["B"])*(np.sqrt(gamma_t*Rt*TB_ratio()/(gamma_c*Rc)) * M19_(M0))-M0)) # P0=P19, so last term all goes to 0.
     F_total = Fcore + Fbypass
     return F_total
-
-
 
 def ST(M0):
     " Calculates specific thrust "
@@ -311,6 +316,8 @@ def SFC(M0):
     return SFC
 
 def setMode(mode, M0):
+    global current_mode
+    current_mode = mode
     if mode == 1:
         tau.update({"c": tau_c_(),
         "f": tau_f_(),
@@ -321,12 +328,13 @@ def setMode(mode, M0):
         pi.update({"c": pi_c,
         "AB": 1,
         "f": pi_f,
-        "t": pi_t_(tau_t_()),
+        "t": pi_t_(),
         "B": 1,
         "d": pi_d_(M0),
         "i": 1,
         "0": pi_0_(M0)})
         f.update({
+            "f": f_(),
             "B": 0,
             "AB": 0
         })
@@ -341,12 +349,13 @@ def setMode(mode, M0):
         pi.update({"c": pi_c,
         "AB": pi_AB,
         "f": pi_f,
-        "t": pi_t_(tau_t_()),
+        "t": pi_t_(),
         "B": 1,
         "d": pi_d_(M0),
         "i": 1,
         "0": pi_0_(M0)})
         f.update({
+            "f": f_(),
             "B": 0,
             "AB": f_AB_()
         })
@@ -362,10 +371,11 @@ def setMode(mode, M0):
         "f": pi_f,
         "d": pi_d_(M0),
         "i": 1,
-        "t": pi_t_(tau_t_()),
+        "t": pi_t_(),
         "B": pi_B_(M14_(M0), M13_(M0)),
         "0": pi_0_(M0)})
         f.update({
+            "f": f_(),
             "B": f_B_(),
             "AB": f_AB_()
         })
@@ -382,18 +392,16 @@ def setMode(mode, M0):
         "f": 1,
         "t": 1,
         "d": 1,
-        "i": pi_i_(M0),
+        "i": pi_i_(),
         "B": pi_B_(M14_(M0), M13_(M0)),
         "0": pi_0_(M0)})
         f.update({
+            "f": f_(),
             "B": f_B_(),
             "AB": f_AB_()
         })
 
 """Initialise pi_B and tau_B, and tau_t pi_t"""
-
-#print(f"Tau values: {tau}")
-#print(f"Pi values = {pi}")
 
 """Part 3"""
 def M_max_():
@@ -406,10 +414,24 @@ def M_max_():
 def M_turb_limit_(M0):
     f = f_()
     for i in range(len(M0)):
-        if f[i] < 0:
+        if f[i] < 0.00005:
             return M0[i-1]
-        
-
+ 
+''' def initialise(M0):
+    """Initilise other tau and pi which are dependant on M0 (or pi0)"""
+    pi['0'] = pi_0_(M0)
+    tau['0'] = tau_0_(M0)
+    f.update({
+            "f": f_(),
+            "B": f_B_(),
+            "AB": f_AB_()
+        })
+    tau['t'] = tau_t_()
+    pi['t'] = pi_t_(tau['t'])
+    tau['B'] = tau_B_()
+    pi['B'] = pi_B_(M13_(M0), M14_(M0))
+    pi['d'] = pi_d_(M0)
+    tau['AB'] = tau_AB_()'''
 
 if __name__ == "__main__":
 
@@ -423,21 +445,22 @@ if __name__ == "__main__":
 
     """Find M_max"""
     M_max = M_max_()
-    #print(f"M max = {M_max:.2f}")
 
     """Set mach range"""
     M0 = np.linspace(1, M_max, 200)  # finer resolution
-    #print(f"M0: {M0}")
 
     """Initilise other tau and pi which are dependant on M0 (or pi0)"""
     pi['0'] = pi_0_(M0)
     tau['0'] = tau_0_(M0)
+    tau['c'] = tau_c_()
+    tau['f'] = tau_f_()
     f.update({
+            "f": f_(),
             "B": f_B_(),
             "AB": f_AB_()
         })
     tau['t'] = tau_t_()
-    pi['t'] = pi_t_(tau['t'])
+    pi['t'] = pi_t_()
     tau['B'] = tau_B_()
     pi['B'] = pi_B_(M13_(M0), M14_(M0))
     pi['d'] = pi_d_(M0)
@@ -445,27 +468,33 @@ if __name__ == "__main__":
 
     """Find M_turb_limit"""
     M_turb_limit = M_turb_limit_(M0)
-    #print(f"M turb limit = {M_turb_limit:.2f}")
 
     print("Successfully Inititialised!")
 
     # Plot Specific Thrust (ST) vs Mach Number
     plt.figure(figsize=(10, 6))
     for mode in modes:
+        setMode(mode, M0)
         ST_values = []
-        for M in M0:
-            setMode(mode, M)
-            val = ST(M) if M < M_turb_limit or mode == 4 and M < M_max  else np.nan
-            if hasattr(val, "__len__") and not isinstance(val, str):
-                val = np.mean(val)
-            ST_values.append(val)
-
+        STabove0 = True
+        while STabove0:
+            for M in M0:
+                setMode(mode, M)
+                val = ST(M) if M < M_turb_limit or mode == 4 and M < M_max  else np.nan
+                if hasattr(val, "__len__") and not isinstance(val, str):
+                    val = np.mean(val)
+                if val < 0:
+                    val = np.nan
+                    STabove0 = False
+                ST_values.append(val)
+        print("do we really not get here?")
         plt.plot(M0, ST_values, label=mode_labels[mode])
 
     plt.grid(True)
     plt.xlabel("Flight Mach Number (M0)")
     plt.ylabel("Specific Thrust [Ns/kg]")
     plt.title("Specific Thrust vs Flight Mach Number for Different Modes")
+    #plt.axhline(0, color='black', linewidth=2.5)  # bold y=0 line
     plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
     plt.text(M_turb_limit, 700, 'Mach turbine limit ', rotation=0, va='bottom', ha='right')
     plt.axvline(x=M_max, color='gray', linestyle='--')
@@ -528,10 +557,7 @@ if __name__ == "__main__":
             cond = L_Bb/V_13_()[i]
             conditions.append(cond)
         return conditions
-
-    # print(f"T_13 = {T13}")
-    # print(f"P_13 = {P13}")
-
+    
     A = 2.4e19
     B = 0
     Ta = 30000
@@ -558,14 +584,10 @@ if __name__ == "__main__":
     r0 = 2*kf*c**1.5 * X_vals[0] * X_vals[1] ** 0.5 #- 2*kr * c**2 * X_vals[3]; #Reaction rate at time t0
     # subtraction of products negligible
 
-    #print(f"Reaction rate r0 = {r0}")
-    #print(f"c = {c}")
-
     tau_comb = c * X_vals[3] / r0 # Time taken to reach equilibrium
 
     time_flow_bypass = condition()  # Call once to avoid redundant computation
 
-    #print(f" Time for air flow through bypass = {time_flow_bypass}")
 
     M_bypass_burn = False
 
@@ -573,22 +595,27 @@ if __name__ == "__main__":
         if time_flow_bypass[i] > tau_comb[i]:
             if not isinstance(M_bypass_burn, float):
                 M_bypass_burn = M0[i - 1]
-            #print(f"Reaction OK to complete @ {M0[i]}")
-            #break
-            #print(f"Reaction will not complete @ {M0[i]}")
     
     # Plot Winning Graph - Task 4
     ST_values = []
     SFC_values = []
     T_margins = []
+    fs = []
+    fABs = []
     D = q_0*C_D*A_ref
     for M in M0:
+        
         if M < M_bypass_burn:
             setMode(2, M)
         elif M < M_turb_limit:
             setMode(3, M)
         else:
             setMode(4, M)
+
+        #setMode(1, M)
+        #initialise()
+        fs.append(f_())
+        fABs.append(f_AB_())
         F_ = F(M)
         val = ST(M)
         SFC_ = SFC(M)
@@ -601,11 +628,30 @@ if __name__ == "__main__":
 
 
     plt.figure(figsize=(10, 6))
+    plt.plot(M0, fs, label="f")
+    plt.plot(M0, fABs, label="f AB")
+    plt.grid(True)
+    plt.xlabel("Flight Mach Number (M0)")
+    plt.ylabel("f")
+    #plt.ylim(0, 9000)
+    plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
+    plt.text(M_turb_limit, 2500, 'Mach turbine limit ', rotation=0, va='bottom', ha='left')
+    plt.axvline(x=M_max, color='gray', linestyle='--')
+    plt.text(M_max, 2500, 'Mach max ', rotation=0, va='bottom', ha='right')
+    plt.axvline(x=M_bypass_burn, color='gray', linestyle='--')
+    plt.text(M_bypass_burn, 7000, 'Mach Bypass Burn ', rotation=0, va='bottom', ha='right')
+    plt.title("Specific Thrust vs Flight Mach Number for Transitioning Modes")
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+    plt.figure(figsize=(10, 6))
     plt.plot(M0, ST_values, label="Specific Thrust")
     plt.grid(True)
     plt.xlabel("Flight Mach Number (M0)")
     plt.ylabel("Specific Thrust [Ns/kg]")
-    plt.ylim(0, 9000)
+    plt.ylim(0, 600)
     plt.axvline(x=M_turb_limit, color='gray', linestyle='--')
     plt.text(M_turb_limit, 2500, 'Mach turbine limit ', rotation=0, va='bottom', ha='left')
     plt.axvline(x=M_max, color='gray', linestyle='--')
@@ -660,7 +706,6 @@ if __name__ == "__main__":
 
     """Part 2b"""
 
-    #print(f"Temp14 range = {T14[-1]-T14[0]}")
 
     def getK(T_): # between mach 3-5
         expv = -27.5+(-8.145+27.5)*(T_-T14[0])/(T14[-1]-T14[0])     
@@ -668,6 +713,7 @@ if __name__ == "__main__":
         return np.exp(expv)
 
     def progress_variable():
+        print(f"Progress_variable: {(getK(T14)*np.sqrt(2)*(P0/P14))**(2/3)}")
         return (getK(T14)*np.sqrt(2)*(P0/P14))**(2/3)
 
     X_H2_dissociated = progress_variable()

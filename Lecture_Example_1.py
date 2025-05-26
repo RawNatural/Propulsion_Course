@@ -37,7 +37,7 @@ pi_n = 0.9 # Nozzle Stagnation Pressure Ratio
 tau_n = 1 # Nozzle Stagnation Temperature Ratio
 T_t4max = 1900 # [K] - Turbine Entry Stagnation Temperature
 tau_lambda = (c_pt/c_pc)*(T_t4max/T_0)
-print(f"tau_lambda: {tau_lambda}")
+#print(f"tau_lambda: {tau_lambda}")
 #f = mf/mc # Burner Fuel Air Ratio
 #f_AB = mf_AB/mc # Afterburner Fuel Air Ratio
 tau_AB = 1.2 #T_t7/T_t5 #Also must initialise as something - design parameter. Can we figure this out based on combustion or something?
@@ -64,10 +64,9 @@ mC = None; mB = None;
 
 f_st = 2.38 # Stoichiometric fuel ratio
 
-tau_c = pi_c**(e_c*((gamma_c - 1)/(gamma_c)))
+tau_c = pi_c**(((gamma_c - 1)/(gamma_c*e_c)))
 tau_f = (pi_f)**e_c*((gamma_c - 1)/gamma_c)
 tau_fn = 1
-
 
 def tau_0(M0):
     return 1 + (gamma_c -1)/2 * M0**2
@@ -113,7 +112,7 @@ def TC_ratio(M0, piC, tauC):
     TC_ratio_ = tau['lambda']*tau_t(M0, tauC)*(1/c_ratio) / ((1*pi['0']*pi['d']*piC*pi['b']*pi['t']*pi['n'])**((gamma_t-1)/gamma_t))
     #TC_ratio_ = 1*1*1 / ((1*1*pi['d']*piC*pi['b']*1*pi['n'])**((gamma_t-1)/gamma_t))
     TCratios.append(TC_ratio_)
-    print(f"TC:::::: {TC_ratio_}")
+    #print(f"TC:::::: {TC_ratio_}")
     return TC_ratio_
 
 def PB_ratio_():
@@ -143,6 +142,8 @@ def f_(tauC):
     """ Calculates fuel air ratio for burner """
     numerator = tau['lambda'] - tauC*tau['0']
     denominator = (eff_b*H)/(c_pc*T_0) -tau['lambda']
+    print(numerator/denominator)
+    #print(tau['0'])
     return numerator/denominator
 
 def tau_B_():
@@ -287,7 +288,7 @@ tau['AB'] = tau_AB_(tauC, M0)
 
 ST = ST_(M0, piC, tauC)
 
-print(tau)
+#(tau)
 
 import matplotlib.pyplot as plt
 
@@ -297,8 +298,8 @@ plt.ylabel("Specific Thrust F/m0 [N/(kg/s)]")
 plt.title("Compare to lecture slide")
 plt.show()
 
-print(len(M9s[0]))
-print(len(piC))
+#print(len(M9s[0]))
+#print(len(piC))
 
 plt.plot(piC, M9s[0])
 plt.xlabel("pi C")
