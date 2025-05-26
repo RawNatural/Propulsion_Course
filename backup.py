@@ -239,6 +239,42 @@ def M13_(M0):
     #return np.sqrt(abs((((pi_f*pi['0'])**((gamma_t - 1)/gamma_t) - 1)*2/(gamma_t - 1))))
     return M2(M0)
 
+'''def solve_M14(M14, M13, tau_B_val):
+    if M14 <= 0:
+        return 1e6  # Large penalty to keep M14 positive
+    #M14 = M14[0] if isinstance(M14, (np.ndarray, list)) else M14
+    M_14 = ((((1 + ((gamma_c - 1) / 2) * M14**2) / (1 + ((gamma_c - 1) / 2) * M13**2)) 
+             * (M14**2 / M13**2) ) * ((1 + gamma_c * M13**2) / (1 + gamma_c * M14**2))**2) - tau_B_val#1.2#tau['B']
+    if M_14 <= 0:
+        return 1e6  # Large penalty to keep M14 positive
+    return M_14
+
+def M14_(M0):
+    M13_vals = M13_(M0)
+    tau_B_vals = tau['B']
+    M14_guess = 0.2
+    M14s = []
+
+    # Convert scalars to 1-element lists for uniform handling
+    if np.isscalar(M13_vals):
+        M13_vals = [M13_vals]
+    if np.isscalar(tau_B_vals):
+        tau_B_vals = [tau_B_vals] * len(M13_vals)  # broadcast scalar to match M13
+
+    for M_13, tauB in zip(M13_vals, tau_B_vals):
+        #sol = root_scalar(solve_M14, args=(M_13, tauB), bracket=[0.05, 0.4])
+        #M_14 = sol.root if sol.converged else np.nan
+        M_14 = fsolve(solve_M14, M14_guess, args=(M_13, tauB))[0]
+        if M_14 < 0.99:
+            f['B'] = f_st
+        while M_14 > 0.99:
+            f['B'] -= 0.001
+            #sol = root_scalar(solve_M14, args=(M_13, tauB), bracket=[0.05, 0.4])
+            #M_14 = sol.root if sol.converged else np.nan
+            M_14 = fsolve(solve_M14, M14_guess, args=(M_13, tauB))[0]
+        M14s.append(M_14) 
+        f['Bmax'] = f['B']
+    return M14s[0] if len(M14s) == 1 else np.array(M14s)'''
 
 from scipy.optimize import fsolve
 import numpy as np
@@ -274,6 +310,14 @@ def M14_(M0):
             print(f"Warning: Invalid M14 value returned: {M_14}")
             M_14 = np.nan
 
+
+        """max_iters = 20
+        iters = 0
+        while M_14 > 0.99 and iters < max_iters:
+            f['B'] -= 0.0000001
+            M_14 = fsolve(wrapped_f, M14_guess)[0]
+            iters += 1
+"""
         M14s.append(M_14)
         f['Bmax'] = f['B']
         #print(f['Bmax'])
@@ -432,6 +476,21 @@ def M_turb_limit_(M0):
         if f[i] < 0.00005:
             return M0[i-1]
  
+''' def initialise(M0):
+    """Initilise other tau and pi which are dependant on M0 (or pi0)"""
+    pi['0'] = pi_0_(M0)
+    tau['0'] = tau_0_(M0)
+    f.update({
+            "f": f_(),
+            "B": f_B_(),
+            "AB": f_AB_()
+        })
+    tau['t'] = tau_t_()
+    pi['t'] = pi_t_(tau['t'])
+    tau['B'] = tau_B_()
+    pi['B'] = pi_B_(M13_(M0), M14_(M0))
+    pi['d'] = pi_d_(M0)
+    tau['AB'] = tau_AB_()'''
 
 if __name__ == "__main__":
 
@@ -465,7 +524,9 @@ if __name__ == "__main__":
     pi['B'] = pi_B_(M13_(M0), M14_(M0))
     pi['d'] = pi_d_(M0)
     tau['AB'] = tau_AB_()
-    setMode(1, M0)
+    setMode(3, M0)
+    print(M14_(M0))
+    print(f['Bmax'])
 
     """Find M_turb_limit"""
     M_turb_limit = M_turb_limit_(M0)
